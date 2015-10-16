@@ -12,6 +12,7 @@ import sys
 import os
 import argparse
 from Bio import SeqIO
+from collections import defaultdict
 
 def original_contig_name(s):
     """Transform s to the original contig name"""
@@ -50,22 +51,25 @@ def original_contig_name_special(s):
 def main(args):
 
     all_seqs = {}
+    all_originals = defaultdict(dict)
     for i, seq in enumerate(SeqIO.parse(args.fasta_file, "fasta")):
+        original_contig_name, part_id, left_over = original_contig_name_special(seq.id)
         all_seqs[seq.id] = seq
+        all_originals[original_contig_name][part_id] = seq.id
 
-    first_iteration = True
     merged_contigs_stack = []
-
-    for seq_id in sorted(all_seqs.keys()):
-        original_contig_id, part_id, left_over = original_contig_name_special(seq_id)
- 
-        if first_iteration:
-            previous_orig_id = original_contig_id
-            previous_part_id = part_id
-            merged_contig = [all_seqs[seq_id]]
-            first_iteration = False
-            continue
-        if previous_orig_id == original_contig_id:
+    
+    for original_contig_id, part_ids in all_originals.iteritems():
+        first_iteration = True
+        for part_id in sorted(part_ids.keys()):
+            seq_id = part_ids[part_id]
+         
+            if first_iteration:
+                previous_part_id = part_id
+                merged_contig = [all_seqs[seq_id]]
+                first_iteration = False
+                continue
+        
             # This assumes they are sorted
             if part_id - 1 == previous_part_id:
                 # Consequtive parts can be merged
@@ -77,15 +81,10 @@ def main(args):
 
                 # Create a new group
                 merged_contig = [all_seqs[seq_id]]
-        else:
-            merged_contigs_stack.append(merged_contig)
-            merged_contig = [all_seqs[seq_id]]
-
-        previous_orig_id = original_contig_id 
-        previous_part_id = part_id
-
-    if merged_contig:
+       
+            previous_part_id = part_id
         merged_contigs_stack.append(merged_contig)
+
 
     for merged_contig in merged_contigs_stack:
         if len(merged_contig) > 1:
