@@ -3,7 +3,7 @@
 
 Output files will be <original>.xx.fasta
 """
-
+from __future__ import print_function
 import argparse
 import sys
 import os
@@ -18,7 +18,7 @@ def next_output_file(input_file, prefix, i):
         prefix = ".".join(os.path.basename(input_file).split('.')[0:])
     
     new_filename = "{0}.{1}.fasta".format(prefix, i)
-    print new_filename
+    print(new_filename)
     return open(new_filename, 'w')
 
 
