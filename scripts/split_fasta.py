@@ -8,18 +8,23 @@ import argparse
 import sys
 import os
 import re
+from os.path import join as ospj
 
 def header(row):
     regex = re.compile("^>")
     return regex.findall(row)
 
-def next_output_file(input_file, prefix, i):
+def next_output_file(input_file, prefix, outdir, i):
     if input_file is not None:
         prefix = ".".join(os.path.basename(input_file).split('.')[0:])
     
     new_filename = "{0}.{1}.fasta".format(prefix, i)
+    
     print(new_filename)
-    return open(new_filename, 'w')
+    if outdir is not None:
+        return open(ospj(outdir, new_filename), 'w')
+    else:
+        return open(new_filename, 'w')
 
 
 def main(args):
@@ -30,7 +35,7 @@ def main(args):
 
     n = 0
     i = 0
-    outputfh = next_output_file(args.input_fasta, args.prefix, i) 
+    outputfh = next_output_file(args.input_fasta, args.prefix, args.outdir, i) 
     for row in input_handle:
         if header(row):
             n+=1
@@ -39,7 +44,7 @@ def main(args):
             i += 1
             n = 1
             outputfh.close()
-            outputfh = next_output_file(args.input_fasta, args.prefix, i)
+            outputfh = next_output_file(args.input_fasta, args.prefix, args.outdir, i)
         
         outputfh.write(row)
 
@@ -48,6 +53,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--outdir', '-o', help="output directory")
     parser.add_argument('--input_fasta', help="Input read fasta 1")
     parser.add_argument('--prefix', help="output prefix")
     parser.add_argument('n_seqs', type=int, help="Number of sequences per file, the last file will contain slightly less")
