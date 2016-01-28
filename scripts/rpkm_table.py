@@ -19,7 +19,7 @@ def main(args):
         nr_reads_sample, read_length = sample_info.ix[sample_name]
 
         # Rpkm calculation based on average coverage
-        rpkm = cov_df['avg_coverage'].divide(read_length * nr_reads_sample) * 1e9
+        rpkm = cov_df['avg_coverage'].divide(float(read_length) * float(nr_reads_sample)) * 1e9
         
         df[sample_name] = rpkm
     df.to_csv(sys.stdout, sep='\t')
