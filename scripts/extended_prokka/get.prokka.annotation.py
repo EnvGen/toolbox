@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 """A script to fetch all dbxref annotations of a certain type from a gff file"""
 
 import argparse
