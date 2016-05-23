@@ -173,12 +173,18 @@ class TestCMD(object):
         assert_true(lca_df[lca_df['contig_id'] == 'k99_100009']['species'].isnull().all())
 
         # A case with a strange taxon where certain levels are skipped
-        # k99_10010
+        # k99_100010
         assert_false(lca_df[lca_df['contig_id'] == 'k99_100010']['superkingdom'].isnull().any())
         assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['superkingdom'] == 'Viruses').all())
-        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['phylum'] == 'Not Applicable').all())
-        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['class'] == 'Not Applicable').all())
-        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['order'] == 'Not Applicable').all())
-        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['family'] == 'Not Applicable').all())
+        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['phylum'].isnull()).all())
+        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['class'].isnull()).all())
+        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['order'].isnull()).all())
+        assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['family'].isnull()).all())
         assert_true((lca_df[lca_df['contig_id'] == 'k99_100010']['genus'] == 'Deltavirus').all(),
-                msg="{}".format(lca_df[lca_df['contig_id'] == 'k99_10010']))
+                msg="{}".format(lca_df[lca_df['contig_id'] == 'k99_100010']))
+
+        # A case where root is present, which should be considered as unclassified
+        # k99_100011
+        assert_false(lca_df[lca_df['contig_id'] == 'k99_100010']['superkingdom'].isnull().any())
+        assert_true((lca_df[lca_df['contig_id'] == 'k99_100011']['superkingdom'] == 'Bacteria').all())
+
