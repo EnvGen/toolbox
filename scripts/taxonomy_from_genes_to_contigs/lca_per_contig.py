@@ -102,6 +102,7 @@ def partial_contig_lca(df, val_cols):
                 to_be_assigned = to_be_assigned & (contig_tax_df_temp[col + '_count'].divide(contig_tax_df_temp['assigned_genes']) >= 0.9)
             contig_tax_df[col] = contig_tax_df_temp[col + '_tuple'].apply(lambda x: x[0])[to_be_assigned]
 
+    contig_tax_df[contig_tax_df == 'Not Applicable'] = None
     return contig_tax_df
 
 def apply_contig_assignment(contig_tax_df, df, val_cols):
