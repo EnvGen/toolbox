@@ -23,8 +23,10 @@ def main(args):
         bin_contigs_s = set(bin_contigs["contig_id"])
         avg_cov_df['in_bin'] = [contig in bin_contigs_s for contig in avg_cov_df.index]
 
-        avg_cov_df[(~avg_cov_df['in_bin'])].plot.scatter(x='avg_cov', y='length', color='red', ax=ax)
-        avg_cov_df[avg_cov_df['in_bin']].plot.scatter(x='avg_cov', y='length', color='green', ax=ax)
+        avg_cov_df[avg_cov_df['in_bin']].plot.scatter(x='avg_cov', y='length', color='green', ax=ax, alpha=args.alpha)
+        avg_cov_df[(~avg_cov_df['in_bin'])].plot.scatter(x='avg_cov', y='length', color='red', ax=ax, alpha=args.alpha)
+        ax.set_xlim((0.001, 100000))
+        ax.set_ylim((100, 1000000))
         ax.set_xscale('log')
         ax.set_yscale('log')
         ax.set_xlabel("Coverage Depth for SAG reads")
@@ -35,5 +37,6 @@ if __name__ == '__main__':
     parser.add_argument('input_coverage', nargs='*', help='Bedtools coverage files')
     parser.add_argument('--mag_contig_list', nargs='*', help='contig list with all contigs in MAG')
     parser.add_argument('--output_file', default='coverage_plot.pdf')
+    parser.add_argument('--alpha', default=0.7, help='The value for alpha transparancy in the scatter plot')
     args = parser.parse_args()
     main(args)
