@@ -16,6 +16,8 @@ def read_cov_file(cov_file):
 
 def main(args):
     assert(len(args.input_coverage) == len(args.mag_contig_list))
+    if args.use_agg:
+        plt.switch_backend('agg')
     ax = plt.subplot()
     for input_coverage, contig_list in zip(args.input_coverage, args.mag_contig_list):
         avg_cov_df = read_cov_file(input_coverage)
@@ -37,6 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('input_coverage', nargs='*', help='Bedtools coverage files')
     parser.add_argument('--mag_contig_list', nargs='*', help='contig list with all contigs in MAG')
     parser.add_argument('--output_file', default='coverage_plot.pdf')
+    parser.add_argument('--use_agg', action="store_true", help='If server doesnt have DISPLAY variable set')
     parser.add_argument('--alpha', default=0.7, help='The value for alpha transparancy in the scatter plot')
     args = parser.parse_args()
     main(args)
