@@ -18,10 +18,13 @@ sns.set_context('talk')
 # 5. Reads that map to metagenome contig shorter than 1000 and SAG x
 # 6. Reads that map to metagenome contig shorter than 1000 but not SAG x
 # 7. Reads that do not map to metagenome but to SAG x
+# 8. Reads that do not map to metagenome neither to SAG
 
 def get_all_stats(args):
     result_l = []
-    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag in zip(args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names):
+    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file in \
+            zip(args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names, args.sag_unmapped_bam_files):
+
         mag_reads = set()
         long_contig_reads = set()
         metagenome_reads = set()
@@ -42,6 +45,9 @@ def get_all_stats(args):
         sag_samfile = pysam.AlignmentFile(sag_samfile_path, 'rb')
         sag_reads = set((read.qname, read.is_read1) for read in sag_samfile.fetch())
 
+        sag_unmapped_samfile = pysam.AlignmentFile(sag_unmapped_bam_file, 'rb')
+        sag_unmapped_reads = set((read.qname, read.is_read1) for read in sag_unmapped_samfile)
+
         tmp_result_d = {}
         tmp_result_d['1'] = len(mag_reads & sag_reads)
         tmp_result_d['2'] = len(mag_reads - sag_reads)
@@ -50,6 +56,8 @@ def get_all_stats(args):
         tmp_result_d['5'] = len((metagenome_reads - long_contig_reads) & sag_reads)
         tmp_result_d['6'] = len((metagenome_reads - long_contig_reads) - sag_reads)
         tmp_result_d['7'] = len(sag_reads - metagenome_reads)
+        tmp_result_d['8'] = len(sag_unmapped_reads - metagenome_reads)
+
         result_l.append(tmp_result_d)
 
     return result_l
@@ -79,6 +87,7 @@ def plot_results(args, result_l):
         plt.text(.45, .2, "{:.2%}".format(sag_result_d['5'] / float(tot_sum)))
         plt.text(.25, .3, "{:.2%}".format(sag_result_d['6'] / float(tot_sum)))
         plt.text(.7, .15, "{:.2%}".format(sag_result_d['7'] / float(tot_sum)))
+        plt.text(.1, .1, "{:.2%}".format(sag_result_d['8'] / float(tot_sum)))
 
         plt.legend((circle1, circle2, circle3, circle4), ('Metagenome', 'MAG', 'Contigs > 1kb', 'SAG'))
         plt.title('Venn Diagram for all mapped reads. MAG: {} SAG: {}'.format(mag, sag))
@@ -103,6 +112,7 @@ if __name__ == '__main__':
     parser.add_argument("--mag_contig_lists", nargs='*')
     parser.add_argument("--sag_bam_files", nargs='*')
     parser.add_argument("--sag_names", nargs='*')
+    parser.add_argument("--sag_unmapped_bam_files", nargs='*')
     parser.add_argument("--output_figures", nargs='*')
     parser.add_argument("--use_agg", action="store_true")
     args = parser.parse_args()
