@@ -91,6 +91,8 @@ def plot_results(args, result_l):
         fig.savefig(output_figure)
 
 def main(args):
+    if args.use_agg:
+        plt.switch_backend('agg')
     result_l = get_all_stats(args)
     plot_results(args, result_l)
 
@@ -102,5 +104,6 @@ if __name__ == '__main__':
     parser.add_argument("--sag_bam_files", nargs='*')
     parser.add_argument("--sag_names", nargs='*')
     parser.add_argument("--output_figures", nargs='*')
+    parser.add_argument("--use_agg", action="store_true")
     args = parser.parse_args()
     main(args)
