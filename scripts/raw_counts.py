@@ -9,14 +9,17 @@ import argparse
 import pandas as pd
 
 def main(args):
-    df = pd.DataFrame()
     gene_lengths = pd.read_table(args.gene_lengths, header=None, index_col=0, names=['gene_id', 'gene_length'])
 
-    df['gene_lengths'] = gene_lengths
+    df = None
     for fn, sample_name in zip(args.coverage_files, args.sample_names):
-        count_df = pd.read_table(fn, index_col=0, header=None, names=['gene_id', 'count'])
-        df[sample_name] = count_df['count']
+        count_df = pd.read_table(fn, index_col=0, header=None, names=['gene_id', sample_name])
+        if df is None:
+            df = count_df
+        else:
+            df[sample_name] = count_df[sample_name]
 
+    df['gene_length'] = gene_lengths
     df.to_csv(sys.stdout, sep='\t')
 
 if __name__ == "__main__":
