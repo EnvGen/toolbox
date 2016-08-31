@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-if [ "$infile" == "" ] ; then
+if [ "$1" == "" ] ; then
     echo "Usage: classification_to_krona.sh <input classification csv> <output prefix>"
     exit 0
 fi
