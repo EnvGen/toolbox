@@ -12,7 +12,7 @@ def main(args):
 
     gene_annotation_df['cog_category'] = gene_annotation_df['cog_id'].apply(lambda x: category_df.ix[x]['category'])
 
-    gene_annotation_df.to_csv(sys.stdout, sep='\t')
+    gene_annotation_df.to_csv(sys.stdout, sep='\t', header=None)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
