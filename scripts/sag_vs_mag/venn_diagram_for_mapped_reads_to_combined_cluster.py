@@ -62,7 +62,7 @@ def get_all_stats(args):
         result_l.append(tmp_result_d)
 
     if args.summarize_in_one_plot:
-        summary_result_d = {}
+        summary_result = {}
         summary_std_dev = {}
         for stat_nr in range(1,9):
             stat_s = str(stat_nr)
