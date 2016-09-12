@@ -121,7 +121,7 @@ def plot_results(title, sag_result_d, output_figure, std_dev):
 def plot_all_results(args, result_l, std_dev):
     if args.summarize_in_one_plot:
         title = 'Venn Diagram for all mapped reads. {}'.format(args.name)
-        plot_results(title, result_l[0], args.output_figues[0], std_dev)
+        plot_results(title, result_l[0], args.output_figures[0], std_dev)
     else:
         for mag, sag, sag_result_d, output_figure in zip(args.mag_names, args.sag_names, result_l, args.output_figures):
             title = 'Venn Diagram for all mapped reads. MAG: {} SAG: {}'.format(mag, sag)
