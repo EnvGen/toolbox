@@ -100,7 +100,7 @@ def plot_results(title, sag_result_d, output_figure, std_dev):
         plt.text(.1, .1, "{:.2%}".format(sag_result_d['8'] / float(tot_sum)))
     else:
         plt.text(.65, .45, "{:.2%} ({:.2})".format(sag_result_d['1'] / float(tot_sum), std_dev['1']))
-        plt.text(.65, .65, "{:.2%} ({:.2})".format(sag_result_d['2'] / float(tot_sum), std_dev['2'))
+        plt.text(.65, .65, "{:.2%} ({:.2})".format(sag_result_d['2'] / float(tot_sum), std_dev['2']))
         plt.text(.52, .3, "{:.2%} ({:.2})".format(sag_result_d['3'] / float(tot_sum), std_dev['3']))
         plt.text(.35, .55, "{:.2%} ({:.2})".format(sag_result_d['4'] / float(tot_sum), std_dev['4']))
         plt.text(.45, .2, "{:.2%} ({:.2})".format(sag_result_d['5'] / float(tot_sum), std_dev['5']))
