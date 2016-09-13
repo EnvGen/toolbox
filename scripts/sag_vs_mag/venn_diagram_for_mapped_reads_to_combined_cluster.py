@@ -81,7 +81,7 @@ def get_all_stats(args):
             summary_result[stat_s] = data_a.mean()
             summary_std_dev[stat_s] = data_a.std()
         result_l = [summary_result]
-        return result_l, summary_std_dev
+        return result_l, None
 
     return result_l, None
 
