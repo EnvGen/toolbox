@@ -29,7 +29,7 @@ def get_all_stats(args):
     for arg_list in arg_lists:
         if len(arg_list) > max_len:
             max_len = len(arg_list)
-    new_arg_listis = []
+    new_arg_lists = []
     for arg_list in arg_lists:
         if len(arg_list) == max_len:
             new_arg_lists.append(arg_list)
