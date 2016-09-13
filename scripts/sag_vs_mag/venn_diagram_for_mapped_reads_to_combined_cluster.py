@@ -23,9 +23,21 @@ sns.set_context('talk')
 
 def get_all_stats(args):
     result_l = []
-    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file in \
-            zip(args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names, args.sag_unmapped_bam_files):
 
+    max_len = 0
+    arg_lists = [args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names, args.sag_unmapped_bam_files]
+    for arg_list in arg_lists:
+        if len(arg_list) > max_len:
+            max_len = len(arg_list)
+    new_arg_listis = []
+    for arg_list in arg_lists:
+        if len(arg_list) == max_len:
+            new_arg_lists.append(arg_list)
+        else:
+            new_arg_lists.append(max_len*arg_list)
+
+    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file in zip(*new_arg_lists):
+        print(mag)
         mag_reads = set()
         long_contig_reads = set()
         metagenome_reads = set()
