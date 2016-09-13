@@ -37,7 +37,6 @@ def get_all_stats(args):
             new_arg_lists.append(max_len*arg_list)
 
     for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file in zip(*new_arg_lists):
-        print(mag)
         mag_reads = set()
         long_contig_reads = set()
         metagenome_reads = set()
@@ -81,7 +80,6 @@ def get_all_stats(args):
             data_a = np.array([tmp_result_d[stat_s] for tmp_result_d in result_l])
             summary_result[stat_s] = data_a.mean()
             summary_std_dev[stat_s] = data_a.std()
-        print(summary_std_dev)
         result_l = [summary_result]
         return result_l, summary_std_dev
 
