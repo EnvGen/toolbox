@@ -69,6 +69,7 @@ def get_all_stats(args):
             data_a = np.array([tmp_result_d[stat_s] for tmp_result_d in result_l])
             summary_result[stat_s] = data_a.mean()
             summary_std_dev[stat_s] = data_a.std()
+        print(summary_std_dev)
         result_l = [summary_result]
         return result_l, summary_std_dev
 
@@ -100,7 +101,7 @@ def plot_results(title, sag_result_d, output_figure, std_dev):
         plt.text(.7, .15, "{:.2%}".format(sag_result_d['7'] / float(tot_sum)))
         plt.text(.1, .1, "{:.2%}".format(sag_result_d['8'] / float(tot_sum)))
     else:
-        plt.text(.65, .45, "{:.2%} ({:.2})".format(sag_result_d['1'] / float(tot_sum), std_dev['1']))
+        plt.text(.65, .45, "{:.2%} ({:.2})".format(sag_result_d['1'] / float(tot_sum), float(std_dev['1'])))
         plt.text(.65, .65, "{:.2%} ({:.2})".format(sag_result_d['2'] / float(tot_sum), std_dev['2']))
         plt.text(.52, .3, "{:.2%} ({:.2})".format(sag_result_d['3'] / float(tot_sum), std_dev['3']))
         plt.text(.35, .55, "{:.2%} ({:.2})".format(sag_result_d['4'] / float(tot_sum), std_dev['4']))
