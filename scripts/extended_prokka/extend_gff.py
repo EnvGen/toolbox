@@ -71,7 +71,7 @@ class GFF_feature_rec(object):
             self.ID = ID.split('=')[1]
         
 
-def extend_record(row, feature_blast_hit, prokka=True):
+def extend_record(row, feature_blast_hit, multiple_hits, prokka=True):
     """
     extends record rec with the feature feature_blast_hit if 
     not already present in record.
@@ -86,23 +86,40 @@ def extend_record(row, feature_blast_hit, prokka=True):
             if prodigal_rec_id in feature_blast_hit:
                 new_xref = feature_blast_hit[prodigal_rec_id]
         if new_xref is not None:
-            row += ";Dbxref=" + new_xref
+            if multiple_hits:
+                for val in new_xref:
+                    row += ";Dbxref=" + val
+            else:
+                row += ";Dbxref=" + new_xref
     return row
 
-def translate_from_cdd(feature_blast_hits, cdd_all_file, include_evalue, include_pident):
+def translate_from_cdd(feature_blast_hits, cdd_all_file, include_evalue, include_pident, multiple_hits):
+
+    def process_item(cddid_d, blast_r, include_evalue, include_pident):
+         new_val = cddid_d[blast_r['sseqid'].split('|')[-1]]
+         if include_evalue:
+             new_val += ",evalue:{0}".format(blast_r['evalue'])
+         if include_pident:
+             new_val += ",pident:{0}".format(blast_r['pident'])
+         return new_val
+
     with open(cdd_all_file, 'r') as cf:
-         cddid_d = dict([(row.split('\t')[0], row.split('\t')[1].strip()) for row in cf.readlines()])
-         preformatted_dict = {}
-         for k, v in feature_blast_hits.iteritems():
-             new_val = cddid_d[v['sseqid'].split('|')[-1]]
-             if include_evalue:
-                 new_val += ",evalue:{0}".format(v['evalue'])
-             if include_pident:
-                 new_val += ",pident:{0}".format(v['pident'])
-             preformatted_dict[k] = new_val
+        cddid_d = dict([(row.split('\t')[0], row.split('\t')[1].strip()) for row in cf.readlines()])
+        preformatted_dict = {}
+        for k, v in feature_blast_hits.iteritems():
+            if multiple_hits:
+                for blast_r in v:
+                    new_val = process_item(cddid_d, blast_r, include_evalue, include_pident)
+                    if k in preformatted_dict:
+                        preformatted_dict[k].append(new_val)
+                    else:
+                        preformatted_dict[k] = [new_val]
+            else:
+                new_val = process_item(cddid_d, v, include_evalue, include_pident)
+                preformatted_dict[k] = new_val
     return preformatted_dict 
 
-def main(blastoutfile, gff_file, scovs_threshold, evalue_threshold, cddid_all_file, include_evalue, include_pident, not_prokka):
+def main(blastoutfile, gff_file, scovs_threshold, evalue_threshold, cddid_all_file, include_evalue, include_pident, not_prokka, multiple_hits):
     # Read the blast output
     blast_records, sseq_ids = read_blast_output(blastoutfile)
 
@@ -111,10 +128,24 @@ def main(blastoutfile, gff_file, scovs_threshold, evalue_threshold, cddid_all_fi
     blast_records = filter(blast_filter.blast_record_ok, blast_records)
     
     # Convert blast records to dict indexed on qseqid
-    feature_blast_hits =  dict([(blast_r['qseqid'], blast_r) for blast_r in blast_records])    
+    # If multiple hits are allowed, each value in the dict will be a list
+    feature_blast_hits =  {}
+    for blast_r in blast_records:
+        qseqid = blast_r['qseqid']
+        if qseqid in feature_blast_hits:
+            if multiple_hits:
+                feature_blast_hits[qseqid].append(blast_r)
+            else:
+                if blast_r['evalue'] < feature_blast_hits[qseqid]['evalue']:
+                    feature_blast_hits[blast_r['qseqid']] = blast_r
+        else: # first item for this qseqid
+            if multiple_hits:
+                feature_blast_hits[qseqid] = [blast_r]
+            else:
+                feature_blast_hits[qseqid] = blast_r
 
     # We only want the translated cdd in the resulting genbank file
-    translated_blast_hits = translate_from_cdd(feature_blast_hits, cddid_all_file, include_evalue, include_pident)
+    translated_blast_hits = translate_from_cdd(feature_blast_hits, cddid_all_file, include_evalue, include_pident, multiple_hits)
 
     new_gff = []
     include_rest = False
@@ -130,7 +161,7 @@ def main(blastoutfile, gff_file, scovs_threshold, evalue_threshold, cddid_all_fi
                 new_gff.append(row)
                 include_rest = True
             else:
-                new_gff.append(extend_record(row, translated_blast_hits, prokka=not(not_prokka)))
+                new_gff.append(extend_record(row, translated_blast_hits, multiple_hits, prokka=not(not_prokka)))
 
     sys.stdout.write('\n'.join(new_gff))
      
@@ -163,6 +194,8 @@ if __name__ == "__main__":
    parser.add_argument('--not_prokka', action='store_true',
            help = ('Use this tag if the gff file and the proteins are not '
                'generated by prokka.'))
+   parser.add_argument('--multiple-annotations-per-gene', action='store_true',
+           help= ('Use this tag if all blast hits should be put in the gff'))
    args = parser.parse_args()
 
    main(args.blastoutfile, 
@@ -172,5 +205,6 @@ if __name__ == "__main__":
         args.cddid_all_file,
         args.include_evalue,
         args.include_pident,
-        args.not_prokka)
+        args.not_prokka,
+        args.multiple_annotations_per_gene)
 

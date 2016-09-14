@@ -10,7 +10,7 @@ files = []
 for line in open(filelist, 'r'): files.append(line.rstrip())
 
 for f in files:
-    cl = (f.split("/")[-1]).split(".")[0]
+    cl = ".".join((f.split("/")[-1]).split(".")[:-1])
     d[cl] = {}
     hin = open(f, 'r')
     hincsv = csv.reader(hin, delimiter = '\t')
