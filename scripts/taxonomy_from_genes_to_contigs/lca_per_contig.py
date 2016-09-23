@@ -51,7 +51,9 @@ def get_megan_taxassign(megan_result_df, ncbi_tree, ncbi_map, ranks_df, val_cols
                         data_row[rank] = taxa
                 else:
                     no_rank.update([(taxa, ancestor.name)])
-            saved_taxa[tax_id] = data_row.copy()
+            try: saved_taxa[tax_id] = data_row.copy()
+            except AttributeError as e: 
+                if e.args[0] == "'list' object has no attribute 'copy'": saved_taxa[tax_id] = data_row[:]
             saved_taxa[tax_id].pop('tax_id')
         megan_taxassign_data[gene_id] = data_row
     logging.info("These ranks are missing in the datafile {}".format(no_rank))
@@ -68,7 +70,9 @@ def get_max(contig_series):
         return None, None
 
 def partial_contig_lca(df, val_cols):
-    remaining_cols = val_cols.copy()
+    try: remaining_cols = val_cols.copy()
+    except AttributeError as e: 
+        if e.args[0] == "'list' object has no attribute 'copy'": remaining_cols = val_cols[:]
     # Need to check for strange taxa where some levels are skipped
     for col in val_cols[::-1]:
         remaining_cols.remove(col)
@@ -142,7 +146,9 @@ def main(args):
 def partial_lca(df, val_cols):
     # Partial LCA Classification for all genes within a contig
     return_cols = ['contig_id'] + val_cols
-    classification_lca_df = df[return_cols].copy()
+    try: classification_lca_df = df[return_cols].copy()
+    except AttributeError as e: 
+        if e.args[0] == "'list' object has no attribute 'copy'": classification_lca_df = df[return_cols][:]
     classification_lca_df.loc[df.index][return_cols] = np.NaN
     for col in val_cols:
         df.groupby(['contig_id', col]).size()
