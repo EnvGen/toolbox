@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 from __future__ import print_function
-"""A script to calculate TPM values for contigs or genes based on coverage files
+"""A script to calculate TPM values for contigs or genes based on count files
 
 TPM values are defined as in Wagner et al (Theory in Biosciences) 2012. 
-
-Except rg x rl / flg is replaced with average coverage.
 
 """
 import sys
@@ -35,9 +33,9 @@ if __name__ == "__main__":
             formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--sample_names', nargs='*', 
             help=("Sample names, in the same order as coverage_files"))
-    parser.add_argument('--coverage_files', nargs='*', 
-            help=("Coverage files with tab separated values: "
-                "sequence id, average coverage, sequence length"))
+    parser.add_argument('--count_files', nargs='*', 
+            help=("Count files with tab separated values: "
+                "sequence id, count"))
     parser.add_argument('--sample_info', 
             help=("Tab separated values 'sample_id', 'nr_reads', 'avg_read_length'. "
                 "all values in sample_names need to be present as sample_id values"))
