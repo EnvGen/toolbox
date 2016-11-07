@@ -29,7 +29,8 @@ def append_classified(df):
     return df
 
 def main():
-    infile = sys.argv[1]
+    try: infile = sys.argv[1]
+    except IndexError: sys.exit("Usage: python append_classified_to_lower_ranks.py <taxonomy table>")
     df = pd.read_csv(infile, header=0, sep=",", index_col=0)
     df.fillna("Unclassified",inplace=True)
     df = append_classified(df)
