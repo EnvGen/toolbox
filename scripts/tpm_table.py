@@ -32,6 +32,7 @@ def main(args):
         rg = pd.read_table(fn, index_col=0, header=None, names=['gene_id', 'count'])
         ## Intersect with genes in the gene length file
         rg = rg.loc[list(set(gene_lengths.index).intersection(set(rg.index)))]
+        gene_lengths = gene_lengths.loc[list(rg.index)]
         ## Average read length for sample
         rl = sample_info.ix[sample_name,'avg_read_len']
         ## Calculate T for sample
