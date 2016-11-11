@@ -55,10 +55,6 @@ if __name__ == "__main__":
             help="Coverage files with tab separated values: 'sequence id, count'")
     parser.add_argument('-i', '--sample_info', 
             help="Tab separated values 'sample_id', 'avg_read_length'")
-    parser.add_argument('--count_files', nargs='*', 
-            help="Count files with tab separated values: 'sequence id', 'count'")
-    parser.add_argument('--sample_info', 
-            help="Tab separated values 'sample_id', 'avg_read_length'. All values in sample_names need to be present as sample_id values")
     parser.add_argument('-l', '--gene_lengths',
             help="Gene lengths in a tsv file")
     args = parser.parse_args()
