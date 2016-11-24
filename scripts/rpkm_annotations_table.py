@@ -7,7 +7,7 @@ import sys
 
 def main(args):
     rpkm_table =pd.read_table(args.rpkm_table, index_col=0)
-    annotations = pd.read_table(args.annotation_table, header=None, names=["gene_id", "annotation", "evalue"])
+    annotations = pd.read_table(args.annotation_table, header=None, names=["gene_id", "annotation", "evalue", "score"])
 
     annotation_rpkm = {}
     for annotation, annotation_df in annotations.groupby('annotation'):
