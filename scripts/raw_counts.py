@@ -33,7 +33,7 @@ if __name__ == "__main__":
                 "sequence id, average coverage, sequence length"))
     parser.add_argument('--gene_lengths',
             help=("Gene lengths in a tsv file"))
-    parser.add_argument("--input-compression", default=None, choices=[None, 'gzip'], 
+    parser.add_argument("--input_compression", default=None, choices=[None, 'gzip'], 
             help="Compression type for input coverage files. Default=None, use 'gzip', for gzipped files.")
     args = parser.parse_args()
     main(args)
