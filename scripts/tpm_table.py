@@ -43,7 +43,7 @@ def main(args):
         ## Concatenate to results
         df = pd.concat([df,TPM],axis=1)
     ## Write to file
-    df.to_csv(sys.stdout, sep='\t')
+    df.to_csv(sys.stdout, sep='\t', header=["gene_id"] + df.columns)
     logging.info("Done")
 
 if __name__ == "__main__":
