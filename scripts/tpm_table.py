@@ -24,7 +24,7 @@ def main(args):
     gene_lengths = pd.read_table(args.gene_lengths, header=None, index_col=0, names=['gene_id','gene_length'])
 
     df = pd.DataFrame()
-
+    first = True
     for fn, sample_name in zip(args.coverage_files, args.sample_names):
         logging.info("Calculating TPM for "+ sample_name)
         ## Read counts per gene for sample
@@ -40,10 +40,17 @@ def main(args):
         tpm = ((1e6*rl)/float(T))*(rg['count'].divide(gene_lengths['gene_length']))
         ## Create dataframe
         TPM = pd.DataFrame(tpm,columns=[sample_name])
+
+        ## Add gene length as the first column
+        if first:
+            first = False
+            df = pd.concat([df, gene_lengths],axis=1)
+        
         ## Concatenate to results
         df = pd.concat([df,TPM],axis=1)
+    df.index.name = 'gene_id'
     ## Write to file
-    df.to_csv(sys.stdout, sep='\t', header=["gene_id"] + df.columns)
+    df.to_csv(sys.stdout, sep='\t')
     logging.info("Done")
 
 if __name__ == "__main__":

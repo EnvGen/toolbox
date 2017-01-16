@@ -21,7 +21,7 @@ def main(args):
             df[sample_name] = count_df[sample_name]
 
     df['gene_length'] = gene_lengths
-    df.to_csv(sys.stdout, sep='\t')
+    df[['gene_length'] + list(args.sample_names)].to_csv(sys.stdout, sep='\t')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = __doc__, 
