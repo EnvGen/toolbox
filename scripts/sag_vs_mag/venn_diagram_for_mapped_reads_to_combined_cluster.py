@@ -72,6 +72,11 @@ def get_all_stats(args):
 
         result_l.append(tmp_result_d)
 
+
+    if args.table_output:
+        t_o_df = pd.DataFrame(result_l, index=zip(new_arg_lists[1], new_arg_lists[4]))
+        t_o_df.to_csv(args.table_output, sep='\t')
+
     if args.summarize_in_one_plot:
         summary_result = {}
         summary_std_dev = {}
@@ -156,5 +161,6 @@ if __name__ == '__main__':
     parser.add_argument("--use_agg", action="store_true")
     parser.add_argument("--summarize_in_one_plot", action="store_true", help="Use this tag if all input files will generate one plot")
     parser.add_argument("--name", help="A string to be used as part of the title for summarized plots")
+    parser.add_argument("--table_output", help="File to which a tsv representation of the data will be written") 
     args = parser.parse_args()
     main(args)
