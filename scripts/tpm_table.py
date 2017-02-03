@@ -24,11 +24,11 @@ def main(args):
     gene_lengths = pd.read_table(args.gene_lengths, header=None, index_col=0, names=['gene_id','gene_length'])
 
     df = pd.DataFrame()
-
+    first = True
     for fn, sample_name in zip(args.coverage_files, args.sample_names):
         logging.info("Calculating TPM for "+ sample_name)
         ## Read counts per gene for sample
-        rg = pd.read_table(fn, index_col=0, header=None, names=['gene_id', 'count'])
+        rg = pd.read_table(fn, index_col=0, header=None, names=['gene_id', 'count'], compression=args.input_compression)
         ## Intersect with genes in the gene length file
         rg = rg.loc[list(set(gene_lengths.index).intersection(set(rg.index)))]
         gene_lengths = gene_lengths.loc[list(rg.index)]
@@ -40,8 +40,15 @@ def main(args):
         tpm = ((1e6*rl)/float(T))*(rg['count'].divide(gene_lengths['gene_length']))
         ## Create dataframe
         TPM = pd.DataFrame(tpm,columns=[sample_name])
+
+        ## Add gene length as the first column
+        if first:
+            first = False
+            df = pd.concat([df, gene_lengths],axis=1)
+        
         ## Concatenate to results
         df = pd.concat([df,TPM],axis=1)
+    df.index.name = 'gene_id'
     ## Write to file
     df.to_csv(sys.stdout, sep='\t')
     logging.info("Done")
@@ -57,5 +64,7 @@ if __name__ == "__main__":
             help="Tab separated values 'sample_id', 'avg_read_length'")
     parser.add_argument('-l', '--gene_lengths',
             help="Gene lengths in a tsv file")
+    parser.add_argument("--input_compression", default=None, choices=[None, 'gzip'], 
+            help="Compression type for input coverage files. Default=None, use 'gzip', for gzipped files.")
     args = parser.parse_args()
     main(args)
