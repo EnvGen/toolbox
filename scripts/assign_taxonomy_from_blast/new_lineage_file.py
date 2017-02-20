@@ -20,7 +20,8 @@ def read_lines(fh):
     for i,line in enumerate(fh):
         if i==0:
             continue
-        _, _, taxid, _ = line.decode().split("\t")
+        try: _, _, taxid, _ = line.decode().split("\t")
+        except AttributeError:  _, _, taxid, _ = line.split("\t")
         all_prot_mapped_taxids.add(int(taxid))
     return all_prot_mapped_taxids
 
