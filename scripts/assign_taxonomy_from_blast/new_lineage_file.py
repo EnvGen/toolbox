@@ -11,21 +11,22 @@ IMPORTANT: make sure that the prot.accession2taxid file is as up to date as poss
 from ete3 import NCBITaxa
 import argparse
 import sys
-import tarfile
+import gzip as gz
 import logging
 
-def get_all_taxaid(acc_to_prot_file):
+def read_lines(fh):
     all_prot_mapped_taxids = set()
-    with open(acc_to_prot_file) as prot_map_fh:
-        first = True
-        for line in prot_map_fh:
-            if first:
-                first = False
-                continue
-            _, _, taxid, _ = line.split('\t')
-            all_prot_mapped_taxids.add(int(taxid))
-
+    for i,line in enumerate(fh):
+        if i==0: continue
+        _, _, taxid, _ = line.split('\t')
+        all_prot_mapped_taxids.add(int(taxid))
     return all_prot_mapped_taxids
+
+def get_all_taxaid(acc_to_prot_file):
+    if ".gz" in acc_to_prot_file:
+        with gz.open(acc_to_prot_file, 'rt') as prot_map_fh: return read_lines(prot_map_fh)
+    else:
+        with open(acc_to_prot_file) as prot_map_fh: return read_lines(prot_map_fh)
 
 def find_base_annotation(last_annotated_level, i, fixed_lineage, names, full_lineage):
     base_annotation = None
