@@ -20,13 +20,13 @@ def read_lines(fh):
     for i,line in enumerate(fh):
         if i==0:
             continue
-        _, _, taxid, _ = line.split('\t')
+        _, _, taxid, _ = line.decode().split("\t")
         all_prot_mapped_taxids.add(int(taxid))
     return all_prot_mapped_taxids
 
 def get_all_taxaid(acc_to_prot_file):
     if ".gz" in acc_to_prot_file:
-        with gz.open(acc_to_prot_file, 'rt') as prot_map_fh:
+        with gz.open(acc_to_prot_file) as prot_map_fh:
             with io.BufferedReader(prot_map_fh) as prot_map_buff_fh:
                 return read_lines(prot_map_buff_fh)
     else:
