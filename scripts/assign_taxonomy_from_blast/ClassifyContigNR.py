@@ -42,12 +42,13 @@ def read_blast_input(blastinputfile,lengths, accession_mode=False):
             m = re.search(r"gi\|(.*?)\|.*", subjectId)
             gid = m.group(1)
         qLength = lengths[queryId]
+        
         alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
         fHit = float(alnLength_in_query)/qLength
         fHit *= float(percIdentity)/100.0
         fHit = min(1.0,fHit)
         #hits[queryId] = hits[queryId] + 1
-        if percIdentity > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
+        if float(percIdentity) > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
             matches[queryId].append((gid,fHit))
             nmatches[queryId] += 1
             gids[gid] +=1
