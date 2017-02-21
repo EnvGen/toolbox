@@ -192,7 +192,7 @@ def main(argv):
             contigAssignDepth.append(defaultdict(lambda: Counter()))
 
     contigGenes = defaultdict(list)
-    for gene, matchs in matches.iteritems(): 
+    for gene, matchs in matches.items(): 
         #print str(gene)
         m = re.search(r"(.*)_\d+", gene)
         contig = m.group(1)
