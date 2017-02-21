@@ -26,6 +26,13 @@ def get_id(subjectId,accession_mode):
     if accession_mode: return subjectId
     else: return subjectId.split("|")[1]
 
+def calculate_fHit(percIdentity,queryEnd,queryStart,qLength):
+    alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
+    fHit = float(alnLength_in_query)/qLength
+    fHit *= float(percIdentity)/100.0
+    fHit = min(1.0,fHit)
+    return fHit
+
 def read_blast_lines(fh,lengths,accession_mode):
     #k191_83_2       gi|973180054|gb|KUL19018.1|     71.2    73      21      0       9       81      337     409     6.6e-24 118.2
     #queryId, subjectId, percIdentity, alnLength, mismatchCount, gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore
@@ -40,14 +47,11 @@ def read_blast_lines(fh,lengths,accession_mode):
         
         ## Get the accession or GenInfo Identifier (gi)
         gid = get_id(subjectId,accession_mode)
-
+        ## Get length of query
         qLength = lengths[queryId]
+        ## Calculate percent identity normalized to alignment length
+        fHit = calculate_fHit(percIdentity,queryEnd,queryStart,qLength)
         
-        alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
-        fHit = float(alnLength_in_query)/qLength
-        fHit *= float(percIdentity)/100.0
-        fHit = min(1.0,fHit)
-        #hits[queryId] = hits[queryId] + 1
         if float(percIdentity) > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
             matches[queryId].append((gid,fHit))
             nmatches[queryId] += 1
