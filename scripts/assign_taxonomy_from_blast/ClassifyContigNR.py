@@ -265,7 +265,7 @@ def main(argv):
     
     contigAssign = defaultdict(dict)
     
-    for contig, genes in contigGenes.iteritems():
+    for contig, genes in contigGenes.items():
     
         collate_hits = list()
         for depth in range(7):
