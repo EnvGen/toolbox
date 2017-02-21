@@ -21,26 +21,26 @@ MIN_IDENTITY = 0.40
 # No limit in nr of matches from file to be used
 MAX_MATCHES = 1e100
 
-def read_blast_input(blastinputfile,lengths, accession_mode=False):
+def get_id(subjectId,accession_mode):
+    '''Returns the identifier for the query'''
+    if accession_mode: return subjectId
+    else: return subjectId.split("|")[1]
+
+def read_blast_lines(fh,lengths,accession_mode):
     #k191_83_2       gi|973180054|gb|KUL19018.1|     71.2    73      21      0       9       81      337     409     6.6e-24 118.2
-    
     #queryId, subjectId, percIdentity, alnLength, mismatchCount, gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore
-    
+
     matches = defaultdict(list)
     gids = Counter()
-    nmatches = Counter();
-    
-    for line in open(blastinputfile):
+    nmatches = Counter()
+    for line in fh:
         line = line.rstrip()
-        
         (queryId, subjectId, percIdentity, alnLength, mismatchCount, 
         gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore) = line.split("\t")
         
-        if accession_mode:
-            gid = subjectId
-        else:
-            m = re.search(r"gi\|(.*?)\|.*", subjectId)
-            gid = m.group(1)
+        ## Get the accession or GenInfo Identifier (gi)
+        gid = get_id(subjectId,accession_mode)
+
         qLength = lengths[queryId]
         
         alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
@@ -52,10 +52,12 @@ def read_blast_input(blastinputfile,lengths, accession_mode=False):
             matches[queryId].append((gid,fHit))
             nmatches[queryId] += 1
             gids[gid] +=1
+    return (matches, gids)
 
-
+def read_blast_input(blastinputfile,lengths, accession_mode=False):
+    with open(blastinputfile) as fh: (matches,gids) = read_blast_lines(fh,lengths,accession_mode)
     return (matches, gids.keys())
-    
+
 def read_lineage_file(lineage_file): 
     
     mapping = {}
