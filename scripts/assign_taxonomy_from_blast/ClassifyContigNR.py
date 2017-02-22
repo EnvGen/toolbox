@@ -11,7 +11,7 @@ import gzip
 from collections import defaultdict
 from collections import Counter
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 # These are identities normalized with query coverage:
 MIN_IDENTITY_TAXA = (0.40,0.50,0.60,0.70,0.80,0.90,0.95)
@@ -94,17 +94,16 @@ def read_lineage_file(lineage_file):
     with open(lineage_file) as fh: (mapping,mapBack) = read_lineage_lines(fh)
     return (mapping,mapBack)
 
-def read_query_length_file(query_length_file): 
-    
+def read_query_length_lines(fh):
     lengths = {}
-    
-    for line in open(query_length_file):
+    for line in fh:
         line = line.rstrip()
-    
         (queryid, length) = line.split("\t")
-    
         lengths[queryid] = float(length)
+    return lengths
 
+def read_query_length_file(query_length_file): 
+    with open(query_length_file) as fh: lengths = read_query_length_lines(fh)
     return lengths
 
 def map_gids_binary(gids, mapping_file):
@@ -146,20 +145,18 @@ def map_gids_binary(gids, mapping_file):
 
     return mapping
 
-def map_accessions(accs, mapping_file):
-    first = True
+def map_accessions(accs, fh):
     mappings = dict([(acc, -1) for acc in accs])
-    with open(mapping_file) as mapping_fh:
-        for line in mapping_fh:
-            if first:
-                first = False
-                continue
-
+    for i,line in enumerate(fh):
+            if i==0:continue
             _, acc_ver, taxid, _ = line.split("\t")
             # Only add taxids for the given acc
             if acc_ver in mappings:
                 mappings[acc_ver] = int(taxid)
+    return mappings
 
+def read_accessions_file(accs,mapping_file):
+    with open(mapping_file) as fh: mappings = map_accessions(accs,fh)
     return mappings
 
 def main():
@@ -199,7 +196,7 @@ def main():
     logging.info("Finished reading in lineage file")
 
     if accession_mode:
-        mapping = map_accessions(gids, args.acc_taxaid_mapping_file)
+        mapping = read_accessions_file(gids, args.acc_taxaid_mapping_file)
     else:
         mapping = map_gids_binary(gids, args.gid_taxaid_mapping_file)
     logging.info("Finished loading taxaid map file")
