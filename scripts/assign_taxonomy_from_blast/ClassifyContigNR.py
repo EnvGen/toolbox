@@ -1,16 +1,19 @@
 #from ete2 import NCBITaxa
 import argparse
-import sys, getopt
-import glob, os
-import pandas as p
-import numpy as np
-import re
-import operator
+import glob
 import gzip
-
-from collections import defaultdict
-from collections import Counter
 import logging
+import operator
+import os
+import re
+from collections import Counter
+from collections import defaultdict
+
+import getopt
+import numpy as np
+import pandas as pd
+import sys
+
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 # These are identities normalized with query coverage:
