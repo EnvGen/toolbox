@@ -10,13 +10,6 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 # These are identities normalized with query coverage:
 MIN_IDENTITY_TAXA = (0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95)
 
-# This is local to aligned segment identity:
-MIN_IDENTITY = 0.40
-
-# No limit in nr of matches from file to be used
-MAX_MATCHES = 1e100
-
-
 def get_id(subjectId, accession_mode):
     '''Returns the identifier for the query'''
     if accession_mode:
@@ -42,7 +35,7 @@ def test_fHit_calculation():
     assert calculate_fHit(percIdentity, queryEnd, queryStart, qLength) == 0.45
 
 
-def read_blast_lines(fh, lengths, accession_mode):
+def read_blast_lines(fh, lengths, accession_mode, min_id):
     # k191_83_2       gi|973180054|gb|KUL19018.1|     71.2    73      21      0       9       81      337     409     6.6e-24 118.2
     # queryId, subjectId, percIdentity, alnLength, mismatchCount, gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore
 
@@ -60,14 +53,14 @@ def read_blast_lines(fh, lengths, accession_mode):
         ## Calculate percent identity normalized to alignment length
         fHit = calculate_fHit(percIdentity, queryEnd, queryStart, qLength)
 
-        if float(percIdentity) >= MIN_IDENTITY:
+        if float(percIdentity) >= min_id:
             matches[queryId].append((gid, fHit))
             gids[gid] += 1
     return (matches, gids)
 
 
-def read_blast_input(blastinputfile, lengths, accession_mode=False):
-    with open(blastinputfile) as fh: (matches, gids) = read_blast_lines(fh, lengths, accession_mode)
+def read_blast_input(blastinputfile, lengths, min_id, accession_mode=False):
+    with open(blastinputfile) as fh: (matches, gids) = read_blast_lines(fh, lengths, accession_mode, min_id)
     return (matches, gids.keys())
 
 
@@ -271,15 +264,6 @@ def make_assignment(geneAssign, gene, collate_hits, mapBack, min_fraction):
     return geneAssign
 
 
-def assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, min_fraction):
-    geneAssign = defaultdict(dict)
-    ## For each gene, get the matches in matches
-    for gene, matchs in matches.items():
-        collate_hits = collate_gene_hits(matchs, mapping, lineages)
-        geneAssign = make_assignment(geneAssign, gene, collate_hits, mapBack, min_fraction)
-    return geneAssign
-
-
 def assign_unclassified():
     d = {}
     for depth in range(7): d[depth] = ('Unclassified',-1.0)
@@ -333,45 +317,6 @@ def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, c
     return contigAssign,geneAssign
 
 
-# def assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, min_fraction):
-#     contigAssign = defaultdict(dict)
-#     for contig, genes in contigGenes.items():
-#         collate_hits = list()
-#         for depth in range(7):
-#             collate_hits.append(Counter())
-#
-#         for gene in genes:
-#             for depth in range(7):
-#                 try:
-#                     (assignhit, genef) = geneAssign[gene][depth]
-#                 except KeyError:
-#                     continue
-#
-#                 if assignhit != 'Unclassified':
-#                     collate_hits[depth][assignhit] += lengths[gene]  # *genef
-#
-#         # Contigs are assigned a taxonomy based on LCA for
-#         # all genes assigned on at least kingdom level.
-#         dWeight = sum(collate_hits[0].values())
-#         for depth in range(7):
-#             collate = collate_hits[depth]
-#             sortCollate = sorted(collate.items(), key=operator.itemgetter(1), reverse=True)
-#             nL = len(collate)
-#             if nL > 0:
-#                 dP = 0.0
-#                 if dWeight > 0.0:
-#                     dP = float(sortCollate[0][1]) / dWeight
-#                     if dP > min_fraction:
-#                         contigAssign[contig][depth] = (sortCollate[0][0], dP, sortCollate[0][1])
-#                     else:
-#                         contigAssign[contig][depth] = ('Unclassified', 0., 0.)
-#                 else:
-#                     contigAssign[contig][depth] = ('Unclassified', 0., 0.)
-#             else:
-#                 contigAssign[contig][depth] = ('Unclassified', 0., 0.)
-#     return contigAssign
-
-
 def write_gene_assigns(output_dir, geneAssign):
     with open(output_dir + "_genes.csv", "w") as assign_file, open(output_dir + "_genes.supports.csv",
                                                                    "w") as support_file:
@@ -418,6 +363,8 @@ def main():
                         help="text taxaid to lineage mapping")
     parser.add_argument('-f', '--min_fraction', default=0.5, type=float,
                         help="Minimum fraction of weights needed to assign to a particular level, default 0.5. 0.9 would be more strict.")
+    parser.add_argument('-i', '--min_id', default=40.0, type=float,
+                        help="Minimum allowed percent identity to parse a hit")
     parser.add_argument('-o', '--output_dir', type=str, default="output",
                         help=("string specifying output directory and file stubs"))
 
@@ -434,7 +381,7 @@ def main():
     (lengths, contigGenes, contigLengths) = read_bed_file(args.bed_file)
     logging.info("Finished reading bed file")
 
-    (matches, gids) = read_blast_input(args.blast_input_file, lengths, accession_mode)
+    (matches, gids) = read_blast_input(args.blast_input_file, lengths, args.min_id, accession_mode)
     logging.info("Finished reading in blast results file")
 
     (lineages, mapBack) = read_lineage_file(args.lineage_file)
