@@ -11,6 +11,7 @@ import gzip
 from collections import defaultdict
 from collections import Counter
 import logging
+logging.basicConfig(level=logging.INFO)
 
 # These are identities normalized with query coverage:
 MIN_IDENTITY_TAXA = (0.40,0.50,0.60,0.70,0.80,0.90,0.95)
@@ -68,22 +69,29 @@ def read_blast_input(blastinputfile,lengths, accession_mode=False):
     with open(blastinputfile) as fh: (matches,gids) = read_blast_lines(fh,lengths,accession_mode)
     return (matches, gids.keys())
 
-def read_lineage_file(lineage_file): 
-    
+def run_map_back(mapBack,tokens):
+    for depth in range(6,0,-1):
+        if tokens[depth] not in mapBack[depth] and tokens[depth] != 'None':
+            for depth2 in range(depth - 1,-1,-1):
+                mapBack[depth][tokens[depth]].append(tokens[depth2])
+    return mapBack
+
+def read_lineages(fh):
     mapping = {}
     mapBack = defaultdict(lambda: defaultdict(list))
-    for line in open(lineage_file):
+    for line in fh:
         line = line.rstrip()
-    
         tokens = line.split("\t")
         (taxaid, domainid, phylumid, classid, orderid, familyid, genusid, speciesid) = tokens
-
+        ## Map taxaid to the lineage
         mapping[int(taxaid)]=[domainid, phylumid, classid, orderid, familyid, genusid, speciesid];
-        tokens.pop(0)
-        for depth in range(6,0,-1):
-            if tokens[depth] not in mapBack[depth] and tokens[depth] != 'None':
-                for depth2 in range(depth - 1,-1,-1):
-                    mapBack[depth][tokens[depth]].append(tokens[depth2])
+        tokens.pop(0) ## Remove taxaid from tokens
+        ## Iterate over the ranks and map each rank to the full previous lineage
+        mapBack = run_map_back(mapBack,tokens)
+    return (mapping,mapBack)
+
+def read_lineage_file(lineage_file): 
+    with open(lineage_file) as fh: (mapping,mapBack) = read_lineages(fh)
     return (mapping,mapBack)
 
 def read_query_length_file(query_length_file): 
@@ -154,7 +162,7 @@ def map_accessions(accs, mapping_file):
 
     return mappings
 
-def main(argv):
+def main():
 
     parser = argparse.ArgumentParser()
 
@@ -174,7 +182,6 @@ def main(argv):
         help=("string specifying output directory and file stubs"))
 
     args = parser.parse_args()
-
     if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
         raise Exception("Both gid_taxaid_mapping_file and acc_taxaid_mapping_file are given, but only one at a time is allowed")
     elif args.gid_taxaid_mapping_file:
@@ -184,7 +191,7 @@ def main(argv):
 
     lengths = read_query_length_file(args.query_length_file)
     logging.info("Finished reading lengths file")
-
+    
     (matches,gids) = read_blast_input(args.blast_input_file,lengths,accession_mode)
     logging.info("Finished reading in blast results file")
 
@@ -322,9 +329,4 @@ def main(argv):
             text_file.flush()
     
 if __name__ == "__main__":
-    main(sys.argv[1:])
-
-
-
-
-
+    main()
