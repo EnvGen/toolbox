@@ -76,7 +76,7 @@ def run_map_back(mapBack,tokens):
                 mapBack[depth][tokens[depth]].append(tokens[depth2])
     return mapBack
 
-def read_lineages(fh):
+def read_lineage_lines(fh):
     mapping = {}
     mapBack = defaultdict(lambda: defaultdict(list))
     for line in fh:
@@ -91,7 +91,7 @@ def read_lineages(fh):
     return (mapping,mapBack)
 
 def read_lineage_file(lineage_file): 
-    with open(lineage_file) as fh: (mapping,mapBack) = read_lineages(fh)
+    with open(lineage_file) as fh: (mapping,mapBack) = read_lineage_lines(fh)
     return (mapping,mapBack)
 
 def read_query_length_file(query_length_file): 
