@@ -221,53 +221,57 @@ def collate_gene_hits(matchs,mapping,lineages):
                 if weight > 0.0: collate_hits[depth][hits[depth]] += weight #could put a transform in here
     return collate_hits
 
+def make_assignment(geneAssign,gene,collate_hits,mapBack,min_fraction):
+    for depth in range(6,-1,-1):
+        collate = collate_hits[depth]
+        dWeight = sum(collate.values())
+        sortCollate = sorted(collate.items(), key=operator.itemgetter(1),reverse=True)
+        nL = len(collate) ## Number of hits collated at depth
+        if nL > 0:
+            dP = 0.0
+            ## dWeight is the sum of weights at this depth
+            if dWeight > 0.0:
+                ## dP is the weight of the best hit at depth, divided by the total weight at depth
+                dP = float(sortCollate[0][1])/dWeight
+                ## If the dP for the best hit is larger than min_fraction then assign at this depth and map back
+                if dP > min_fraction:
+                    geneAssign[gene][depth] = (sortCollate[0][0],dP)
+                    ## Get back lineage for the best assignment
+                    assignBack = mapBack[depth][sortCollate[0][0]]
+                    depth2 = depth -1
+                    for assignB in assignBack:
+                        geneAssign[gene][depth2] = (assignB,1.0)
+                        depth2 -= 1
+                    break
+                    
+                else: geneAssign[gene][depth] = ('Unclassified', -1.0)
+            ## If dWeight is 0.0, set 'Unclassified'
+            else: geneAssign[gene][depth] = ('Unclassified', -1.0)
+        ## If no hits collated at depth, set 'Unclassified'
+        else: geneAssign[gene][depth] = ('Unclassified',-1.0)
+    return geneAssign
 
 def assign_taxonomy_to_genes(matches,mapping,mapBack,lineages,min_fraction):
     geneAssign = defaultdict(dict)
     ## For each gene, get the matches in matches
     for gene, matchs in matches.items(): 
         collate_hits = collate_gene_hits(matchs,mapping,lineages)
-
-        for depth in range(6,-1,-1):
-            collate = collate_hits[depth]
-            dWeight = sum(collate.values())
-        
-            sortCollate = sorted(collate.items(), key=operator.itemgetter(1),reverse=True)
-            nL = len(collate)
-            if nL > 0:
-                dP = 0.0
-                if dWeight > 0.0:
-                    dP = float(sortCollate[0][1])/dWeight
-                    
-                    if dP > min_fraction:
-                        geneAssign[gene][depth] = (sortCollate[0][0],dP)
-                        assignBack = mapBack[depth][sortCollate[0][0]]
-                        depth2 = depth -1
-                        for assignB in assignBack:
-                            geneAssign[gene][depth2] = (assignB,1.0)
-                            depth2 -= 1
-                        
-                        break
-                    else:
-                        geneAssign[gene][depth] = ('Unclassified', -1.0)
-                else:
-                    geneAssign[gene][depth] = ('Unclassified', -1.0)
-            else:
-                geneAssign[gene][depth] = ('Unclassified',-1.0)
+        geneAssign = make_assignment(geneAssign,gene,collate_hits,mapBack,min_fraction)
     return geneAssign
 
 def write_gene_assigns(output_dir,geneAssign):
-    with open(output_dir+"_genes.csv", "w") as text_file:
+    with open(output_dir+"_genes.csv", "w") as assign_file, open(output_dir+"_genes.supports.csv", "w") as support_file:
         for gene in geneAssign.keys():
-            text_file.write('%s'%gene)
-            supports = []
+            assign_file.write('%s'%gene)
+            support_file.write('%s'%gene)
             for depth in range(7):
                 (assign,p) = geneAssign[gene][depth]
-                supports.append(p)
-                text_file.write(',%s'%(assign))
-            for p in supports: text_file.write(',%.3f'%(p))
-            text_file.write('\n')
-            text_file.flush()
+                assign_file.write(',%s'%assign)
+                support_file.write(',%.3f'%p)
+            assign_file.write('\n')
+            support_file.write('\n')
+            assign_file.flush()
+            support_file.flush()
 
 def assign_taxonomy_to_contigs(geneAssign,lengths,contigGenes,contigLengths,min_fraction):
     contigAssign = defaultdict(dict)
