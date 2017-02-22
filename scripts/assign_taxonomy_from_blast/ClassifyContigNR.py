@@ -1,4 +1,3 @@
-# from ete2 import NCBITaxa
 import argparse
 import logging
 import operator
@@ -17,10 +16,14 @@ MIN_IDENTITY = 0.40
 # No limit in nr of matches from file to be used
 MAX_MATCHES = 1e100
 
+
 def get_id(subjectId, accession_mode):
     '''Returns the identifier for the query'''
-    if accession_mode: return subjectId
-    else: return subjectId.split("|")[1]
+    if accession_mode:
+        return subjectId
+    else:
+        return subjectId.split("|")[1]
+
 
 def calculate_fHit(percIdentity, queryEnd, queryStart, qLength):
     alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
@@ -190,7 +193,7 @@ def read_bed_lines(fh):
 
 def read_bed_file(bedfile):
     with open(bedfile) as fh: (lengths, contigGenes, contigLengths) = read_bed_lines(fh)
-    return (lengths, contigGenes, contigLengths)
+    return lengths, contigGenes, contigLengths
 
 
 def calculate_taxa_weight(fHit, min_id_taxa):
@@ -277,38 +280,35 @@ def assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, min_fraction):
     return geneAssign
 
 
-def write_gene_assigns(output_dir, geneAssign):
-    with open(output_dir + "_genes.csv", "w") as assign_file, open(output_dir + "_genes.supports.csv",
-                                                                   "w") as support_file:
-        for gene in geneAssign.keys():
-            assign_file.write('%s' % gene)
-            support_file.write('%s' % gene)
-            for depth in range(7):
-                (assign, p) = geneAssign[gene][depth]
-                assign_file.write(',%s' % assign)
-                support_file.write(',%.3f' % p)
-            assign_file.write('\n')
-            support_file.write('\n')
-            assign_file.flush()
-            support_file.flush()
+def assign_unclassified():
+    d = {}
+    for depth in range(7): d[depth] = ('Unclassified',-1.0)
+    return d
 
-
-def assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, min_fraction):
+def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, contigLengths, min_fraction):
+    geneAssign = defaultdict(dict)
     contigAssign = defaultdict(dict)
     for contig, genes in contigGenes.items():
         collate_hits = list()
         for depth in range(7):
             collate_hits.append(Counter())
-
         for gene in genes:
+            ## Perform taxonomic assignments for all genes on contig
+            try:
+                matchs = matches[gene]
+                collated_gene_hits = collate_gene_hits(matchs, mapping, lineages)
+                geneAssign = make_assignment(geneAssign, gene, collated_gene_hits, mapBack, min_fraction)
+            except KeyError:
+                geneAssign[gene] = assign_unclassified()
+                continue
+            ## Then add assignments to the contig for collating
             for depth in range(7):
                 try:
                     (assignhit, genef) = geneAssign[gene][depth]
                 except KeyError:
                     continue
-
                 if assignhit != 'Unclassified':
-                    collate_hits[depth][assignhit] += lengths[gene]  # *genef
+                    collate_hits[depth][assignhit] += lengths[gene]
 
         # Contigs are assigned a taxonomy based on LCA for
         # all genes assigned on at least kingdom level.
@@ -329,19 +329,78 @@ def assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, 
                     contigAssign[contig][depth] = ('Unclassified', 0., 0.)
             else:
                 contigAssign[contig][depth] = ('Unclassified', 0., 0.)
-    return contigAssign
+
+    return contigAssign,geneAssign
+
+
+# def assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, min_fraction):
+#     contigAssign = defaultdict(dict)
+#     for contig, genes in contigGenes.items():
+#         collate_hits = list()
+#         for depth in range(7):
+#             collate_hits.append(Counter())
+#
+#         for gene in genes:
+#             for depth in range(7):
+#                 try:
+#                     (assignhit, genef) = geneAssign[gene][depth]
+#                 except KeyError:
+#                     continue
+#
+#                 if assignhit != 'Unclassified':
+#                     collate_hits[depth][assignhit] += lengths[gene]  # *genef
+#
+#         # Contigs are assigned a taxonomy based on LCA for
+#         # all genes assigned on at least kingdom level.
+#         dWeight = sum(collate_hits[0].values())
+#         for depth in range(7):
+#             collate = collate_hits[depth]
+#             sortCollate = sorted(collate.items(), key=operator.itemgetter(1), reverse=True)
+#             nL = len(collate)
+#             if nL > 0:
+#                 dP = 0.0
+#                 if dWeight > 0.0:
+#                     dP = float(sortCollate[0][1]) / dWeight
+#                     if dP > min_fraction:
+#                         contigAssign[contig][depth] = (sortCollate[0][0], dP, sortCollate[0][1])
+#                     else:
+#                         contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+#                 else:
+#                     contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+#             else:
+#                 contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+#     return contigAssign
+
+
+def write_gene_assigns(output_dir, geneAssign):
+    with open(output_dir + "_genes.csv", "w") as assign_file, open(output_dir + "_genes.supports.csv",
+                                                                   "w") as support_file:
+        for gene in geneAssign.keys():
+            assign_file.write('%s' % gene)
+            support_file.write('%s' % gene)
+            for depth in range(7):
+                (assign, p) = geneAssign[gene][depth]
+                assign_file.write(',%s' % assign)
+                support_file.write(',%.3f' % p)
+            assign_file.write('\n')
+            support_file.write('\n')
+            assign_file.flush()
+            support_file.flush()
 
 
 def write_contig_assigns(output_dir, contigAssign, contigLengths):
-    with open(output_dir + "_contigs.csv", "w") as text_file:
+    with open(output_dir + "_contigs.csv", "w") as assign_file, open(output_dir+"_contigs.supports.csv", "w") as support_file:
         for contig in contigAssign.keys():
-            text_file.write('%s,%f' % (contig, contigLengths[contig]))
+            assign_file.write('%s,%f' % (contig, contigLengths[contig]))
             for depth in range(7):
                 (assign, p, dF) = contigAssign[contig][depth]
                 dFN = dF / contigLengths[contig]
-                text_file.write(',%s->%.3f->%.3f' % (assign, p, dFN))
-            text_file.write('\n')
-            text_file.flush()
+                assign_file.write(',%s'%assign)
+                support_file.write(',%.3f/%.3f' % (p, dFN))
+            assign_file.write('\n')
+            support_file.write('\n')
+            assign_file.flush()
+            support_file.flush()
 
 
 def main():
@@ -387,13 +446,17 @@ def main():
         mapping = map_gids_binary(gids, args.gid_taxaid_mapping_file)
     logging.info("Finished loading taxaid map file")
 
-    geneAssign = assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, args.min_fraction)
-    logging.info("Finished assigning taxonomy to genes")
+    logging.info("Assigning taxonomy")
+    contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, contigLengths, args.min_fraction)
     write_gene_assigns(args.output_dir, geneAssign)
-
-    contigAssign = assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, args.min_fraction)
-    logging.info("Finished assigning taxonomy to contigs")
     write_contig_assigns(args.output_dir, contigAssign, contigLengths)
+    #geneAssign = assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, args.min_fraction)
+    #logging.info("Finished assigning taxonomy to genes")
+    #write_gene_assigns(args.output_dir, geneAssign)
+
+    #contigAssign = assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, args.min_fraction)
+    #logging.info("Finished assigning taxonomy to contigs")
+    #write_contig_assigns(args.output_dir, contigAssign, contigLengths)
 
 
 if __name__ == "__main__":
