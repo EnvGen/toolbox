@@ -159,86 +159,75 @@ def read_accessions_file(accs,mapping_file):
     with open(mapping_file) as fh: mappings = map_accessions(accs,fh)
     return mappings
 
-def main():
+def calculate_gene_length(start,end):
+    return abs(int(end)-int(start))+1
 
-    parser = argparse.ArgumentParser()
+def test_calculate_gene_length():
+    assert calculate_gene_length(10,1)==10
+    assert calculate_gene_length(1,10)==10
 
-    parser.add_argument("blast_input_file", help="directory with blast 6 matches to taxaid database *.b6")
-
-    parser.add_argument("query_length_file", help="tab delimited file of query lengths")
-
-    parser.add_argument('-g','--gid_taxaid_mapping_file', help="mapping from gid to taxaid gzipped")
-
-    parser.add_argument('-a','--acc_taxaid_mapping_file', help="mapping from accession to taxaid gzipped")
-
-    parser.add_argument('-l','--lineage_file', help="text taxaid to lineage mapping")
-
-    parser.add_argument('-f','--min_fraction', default=0.5, type=float, help="Minimum fraction of weights needed to assign to a particular level, default 0.5. 0.9 would be more strict.")
-
-    parser.add_argument('-o','--output_dir', type=str, default="output",
-        help=("string specifying output directory and file stubs"))
-
-    args = parser.parse_args()
-    if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
-        raise Exception("Both gid_taxaid_mapping_file and acc_taxaid_mapping_file are given, but only one at a time is allowed")
-    elif args.gid_taxaid_mapping_file:
-        accession_mode = False
-    else:
-        accession_mode = True
-
-    lengths = read_query_length_file(args.query_length_file)
-    logging.info("Finished reading lengths file")
-    
-    (matches,gids) = read_blast_input(args.blast_input_file,lengths,accession_mode)
-    logging.info("Finished reading in blast results file")
-
-    (lineages,mapBack) = read_lineage_file(args.lineage_file)
-    logging.info("Finished reading in lineage file")
-
-    if accession_mode:
-        mapping = read_accessions_file(gids, args.acc_taxaid_mapping_file)
-    else:
-        mapping = map_gids_binary(gids, args.gid_taxaid_mapping_file)
-    logging.info("Finished loading taxaid map file")
-
-    geneAssign = defaultdict(dict)
-    contigLengths = Counter()
-    contigAssignDepth = list()
-    for depth in range(7):
-            contigAssignDepth.append(defaultdict(lambda: Counter()))
-
+def read_bed_lines(fh):
     contigGenes = defaultdict(list)
-    for gene, matchs in matches.items(): 
-        #print str(gene)
-        m = re.search(r"(.*)_\d+", gene)
-        contig = m.group(1)
-        contigLengths[contig] += lengths[gene]
+    contigLengths = Counter()
+    lengths = {}
+    for line in fh:
+        line = line.rstrip()
+        contig,start,end,gene = line.split("\t")
         contigGenes[contig].append(gene)
+        length = calculate_gene_length(start,end)
+        lengths[gene] = length
+        contigLengths[contig]+=length
+    return (lengths,contigGenes,contigLengths)
+
+def read_bed_file(bedfile):
+    with open(bedfile) as fh: (lengths,contigGenes,contigLengths) = read_bed_lines(fh)
+    return (lengths,contigGenes,contigLengths)
+
+def calculate_taxa_weight(fHit,min_id_taxa):
+    ## If min_id_taxa = 0.95, fHit needs to be > 0.95 for this depth
+    weight = (fHit - min_id_taxa) / (1.0 - min_id_taxa)
+    weight = max(weight,0.0)
+    return weight
+
+def test_calculate_taxa_weight():
+    fHit = 0.75
+    min_id_taxa = 0.5
+    assert calculate_taxa_weight(fHit,min_id_taxa) == 0.5
+
+def collate_gene_hits(matchs,mapping,lineages):
+    collate_hits = list()
+    for depth in range(7): collate_hits.append(Counter())
+
+    added_matches = set()
+    ## Iterate the hits (protein accessions) and normalized identity, sorted by decreasing normalized percent identity
+    for (match,fHit) in sorted(matchs, key=lambda x: x[1], reverse=True):
+        if mapping[match]<=-1: continue
+        ## Get the taxid and lineage for the protein accession
+        tax_id = mapping[match]
         
-        collate_hits = list()
+        ## Only add best hit per species
+        if tax_id in added_matches: continue
+        added_matches.add(tax_id)                
+
+        if tax_id not in lineages:
+            logging.warning("Taxa id {} is missing from lineage file".format(tax_id))
+            continue
+
+        hits = lineages[tax_id]
         for depth in range(7):
-            collate_hits.append(Counter())
-        
-        
-        added_matches = set()
-        for (match,fHit) in sorted(matchs, key=lambda x: x[1], reverse=True):
+            if hits[depth] != "None":
+                ## Calculate the normalized weight for each depth
+                weight = calculate_taxa_weight(fHit,MIN_IDENTITY_TAXA[depth])
+                if weight > 0.0: collate_hits[depth][hits[depth]] += weight #could put a transform in here
+    return collate_hits
 
-            if mapping[match] > -1:
-                tax_id = mapping[match]
-                if tax_id not in added_matches:     # Only add the best hit per species
-                    added_matches.add(tax_id)
-                    if tax_id not in lineages:
-                        logging.warning("Taxa id {} is missing from lineage file".format(tax_id))
-                        continue
-                    hits = lineages[tax_id]
-                    for depth in range(7):
-                        if hits[depth] != "None":
-                            weight = (fHit - MIN_IDENTITY_TAXA[depth])/(1.0 - MIN_IDENTITY_TAXA[depth])
-                            weight = max(weight,0.0)
-                            if weight > 0.0:
-                                collate_hits[depth][hits[depth]] += weight #could put a transform in here
 
-        #import ipdb; ipdb.set_trace()        
+def assign_taxonomy_to_genes(matches,mapping,mapBack,lineages,min_fraction):
+    geneAssign = defaultdict(dict)
+    ## For each gene, get the matches in matches
+    for gene, matchs in matches.items(): 
+        collate_hits = collate_gene_hits(matchs,mapping,lineages)
+
         for depth in range(6,-1,-1):
             collate = collate_hits[depth]
             dWeight = sum(collate.values())
@@ -250,7 +239,7 @@ def main():
                 if dWeight > 0.0:
                     dP = float(sortCollate[0][1])/dWeight
                     
-                    if dP > args.min_fraction:
+                    if dP > min_fraction:
                         geneAssign[gene][depth] = (sortCollate[0][0],dP)
                         assignBack = mapBack[depth][sortCollate[0][0]]
                         depth2 = depth -1
@@ -260,39 +249,39 @@ def main():
                         
                         break
                     else:
-                        geneAssign[gene][depth] = ('No hits', -1.0)
+                        geneAssign[gene][depth] = ('Unclassified', -1.0)
                 else:
-                    geneAssign[gene][depth] = ('No hits', -1.0)
+                    geneAssign[gene][depth] = ('Unclassified', -1.0)
             else:
-                geneAssign[gene][depth] = ('No hits',-1.0)
+                geneAssign[gene][depth] = ('Unclassified',-1.0)
+    return geneAssign
 
-    
-    with open(args.output_dir+"_genes.csv", "w") as text_file:
+def write_gene_assigns(output_dir,geneAssign):
+    with open(output_dir+"_genes.csv", "w") as text_file:
         for gene in geneAssign.keys():
             text_file.write('%s'%gene)
+            supports = []
             for depth in range(7):
                 (assign,p) = geneAssign[gene][depth]
-                text_file.write(',%s->%.3f'%(assign,p))
+                supports.append(p)
+                text_file.write(',%s'%(assign))
+            for p in supports: text_file.write(',%.3f'%(p))
             text_file.write('\n')
             text_file.flush()
 
-    #collate contig predictions 
-    #import ipdb; ipdb.set_trace()
-    
+def assign_taxonomy_to_contigs(geneAssign,lengths,contigGenes,contigLengths,min_fraction):
     contigAssign = defaultdict(dict)
-    
     for contig, genes in contigGenes.items():
-    
         collate_hits = list()
         for depth in range(7):
             collate_hits.append(Counter())
     
         for gene in genes:
-        
             for depth in range(7):
-                (assignhit, genef) = geneAssign[gene][depth] 
+                try: (assignhit, genef) = geneAssign[gene][depth]
+                except KeyError: continue
             
-                if assignhit != 'No hits':
+                if assignhit != 'Unclassified':
                     collate_hits[depth][assignhit] += lengths[gene]#*genef
         
         # Contigs are assigned a taxonomy based on LCA for
@@ -306,16 +295,18 @@ def main():
                 dP = 0.0
                 if dWeight > 0.0:
                     dP = float(sortCollate[0][1])/dWeight
-                    if dP > args.min_fraction:
+                    if dP > min_fraction:
                         contigAssign[contig][depth] = (sortCollate[0][0],dP,sortCollate[0][1])
                     else:
-                        contigAssign[contig][depth] = ('No hits',0.,0.)
+                        contigAssign[contig][depth] = ('Unclassified',0.,0.)
                 else:
-                    contigAssign[contig][depth] = ('No hits',0.,0.)
+                    contigAssign[contig][depth] = ('Unclassified',0.,0.)
             else:    
-                contigAssign[contig][depth] = ('No hits',0.,0.)
+                contigAssign[contig][depth] = ('Unclassified',0.,0.)
+    return contigAssign
 
-    with open(args.output_dir+"_contigs.csv", "w") as text_file:
+def write_contig_assigns(output_dir,contigAssign,contigLengths):
+    with open(output_dir+"_contigs.csv", "w") as text_file:
         for contig in contigAssign.keys():
             text_file.write('%s,%f'%(contig,contigLengths[contig]))
             for depth in range(7):
@@ -324,6 +315,56 @@ def main():
                 text_file.write(',%s->%.3f->%.3f'%(assign,p,dFN))
             text_file.write('\n')
             text_file.flush()
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("blast_input_file",
+            help="directory with blast 6 matches to taxaid database *.b6")
+    #parser.add_argument("query_length_file", help="tab delimited file of query lengths")
+    parser.add_argument('-g','--gid_taxaid_mapping_file',
+            help="mapping from gid to taxaid gzipped")
+    parser.add_argument('-a','--acc_taxaid_mapping_file', 
+            help="mapping from accession to taxaid gzipped")
+    parser.add_argument('-b', '--bed_file', required=True,
+            help="bed file defining genes on contigs")
+    parser.add_argument('-l','--lineage_file', required=True,
+            help="text taxaid to lineage mapping")
+    parser.add_argument('-f','--min_fraction', default=0.5, type=float, 
+            help="Minimum fraction of weights needed to assign to a particular level, default 0.5. 0.9 would be more strict.")
+    parser.add_argument('-o','--output_dir', type=str, default="output",
+        help=("string specifying output directory and file stubs"))
     
+    args = parser.parse_args()
+    
+    if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
+        raise Exception("Both gid_taxaid_mapping_file and acc_taxaid_mapping_file are given, but only one at a time is allowed")
+    elif args.gid_taxaid_mapping_file:
+        accession_mode = False
+    else:
+        accession_mode = True
+
+    (lengths,contigGenes,contigLengths) = read_bed_file(args.bed_file)
+    logging.info("Finished reading bed file")
+
+    (matches,gids) = read_blast_input(args.blast_input_file,lengths,accession_mode)
+    logging.info("Finished reading in blast results file")
+
+    (lineages,mapBack) = read_lineage_file(args.lineage_file)
+    logging.info("Finished reading in lineage file")
+
+    if accession_mode:
+        mapping = read_accessions_file(gids, args.acc_taxaid_mapping_file)
+    else:
+        mapping = map_gids_binary(gids, args.gid_taxaid_mapping_file)
+    logging.info("Finished loading taxaid map file")
+    
+    geneAssign = assign_taxonomy_to_genes(matches,mapping,mapBack,lineages,args.min_fraction)
+    logging.info("Finished assigning taxonomy to genes")
+    write_gene_assigns(args.output_dir,geneAssign)
+
+    contigAssign = assign_taxonomy_to_contigs(geneAssign,lengths,contigGenes,contigLengths,args.min_fraction)
+    logging.info("Finished assigning taxonomy to contigs")
+    write_contig_assigns(args.output_dir,contigAssign,contigLengths)
+
 if __name__ == "__main__":
     main()
