@@ -33,13 +33,20 @@ def calculate_fHit(percIdentity,queryEnd,queryStart,qLength):
     fHit = min(1.0,fHit)
     return fHit
 
+def test_fHit_calculation():
+    percIdentity = 90.0
+    queryEnd = 309
+    queryStart = 10
+    qLength = 600
+    ## 309-10+1 = 300, 300/600 = 0.5, 0.5*(90/100) = 0.9*0.5 = 0.45
+    assert calculate_fHit(percIdentity,queryEnd,queryStart,qLength) == 0.45
+
 def read_blast_lines(fh,lengths,accession_mode):
     #k191_83_2       gi|973180054|gb|KUL19018.1|     71.2    73      21      0       9       81      337     409     6.6e-24 118.2
     #queryId, subjectId, percIdentity, alnLength, mismatchCount, gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore
 
     matches = defaultdict(list)
     gids = Counter()
-    nmatches = Counter()
     for line in fh:
         line = line.rstrip()
         (queryId, subjectId, percIdentity, alnLength, mismatchCount, 
@@ -52,9 +59,8 @@ def read_blast_lines(fh,lengths,accession_mode):
         ## Calculate percent identity normalized to alignment length
         fHit = calculate_fHit(percIdentity,queryEnd,queryStart,qLength)
         
-        if float(percIdentity) > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
+        if float(percIdentity) >= MIN_IDENTITY:
             matches[queryId].append((gid,fHit))
-            nmatches[queryId] += 1
             gids[gid] +=1
     return (matches, gids)
 
