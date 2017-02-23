@@ -146,6 +146,8 @@ def map_gids_binary(gids, mapping_file):
 
 
 def map_accessions(accs, fh):
+    total_accs = len(accs)
+    found = 0
     mappings = dict([(acc, -1) for acc in accs])
     for i, line in enumerate(fh):
         if i == 0: continue
@@ -153,6 +155,8 @@ def map_accessions(accs, fh):
         # Only add taxids for the given acc
         if acc_ver in mappings:
             mappings[acc_ver] = int(taxid)
+            found+=1
+            if found==total_accs: break
     return mappings
 
 
