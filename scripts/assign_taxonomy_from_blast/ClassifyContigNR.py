@@ -8,7 +8,7 @@ from collections import defaultdict
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
 # These are identities normalized with query coverage:
-MIN_IDENTITY_TAXA = (0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95)
+MIN_IDENTITY_TAXA = [0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95]
 
 def get_id(subjectId, accession_mode):
     '''Returns the identifier for the query'''
@@ -378,15 +378,19 @@ def main():
     else:
         accession_mode = True
 
+    logging.info("Reading bed file")
     (lengths, contigGenes, contigLengths) = read_bed_file(args.bed_file)
     logging.info("Finished reading bed file")
 
+    logging.info("Reading blast results file")
     (matches, gids) = read_blast_input(args.blast_input_file, lengths, args.min_id, accession_mode)
     logging.info("Finished reading in blast results file")
 
+    logging.info("Reading lineage file")
     (lineages, mapBack) = read_lineage_file(args.lineage_file)
     logging.info("Finished reading in lineage file")
 
+    logging.info("Reading taxaid map file")
     if accession_mode:
         mapping = read_accessions_file(gids, args.acc_taxaid_mapping_file)
     else:
@@ -395,8 +399,10 @@ def main():
 
     logging.info("Assigning taxonomy")
     contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, contigLengths, args.min_fraction)
+    logging.info("Finished assigning taxonomy")
     write_gene_assigns(args.output_dir, geneAssign)
     write_contig_assigns(args.output_dir, contigAssign, contigLengths)
+    logging.info("Results written to "+args.output_dir)
     #geneAssign = assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, args.min_fraction)
     #logging.info("Finished assigning taxonomy to genes")
     #write_gene_assigns(args.output_dir, geneAssign)
