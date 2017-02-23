@@ -42,12 +42,13 @@ def read_blast_input(blastinputfile,lengths, accession_mode=False):
             m = re.search(r"gi\|(.*?)\|.*", subjectId)
             gid = m.group(1)
         qLength = lengths[queryId]
+        
         alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
         fHit = float(alnLength_in_query)/qLength
         fHit *= float(percIdentity)/100.0
         fHit = min(1.0,fHit)
         #hits[queryId] = hits[queryId] + 1
-        if percIdentity > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
+        if float(percIdentity) > MIN_IDENTITY and nmatches[queryId] < MAX_MATCHES:
             matches[queryId].append((gid,fHit))
             nmatches[queryId] += 1
             gids[gid] +=1
@@ -191,7 +192,7 @@ def main(argv):
             contigAssignDepth.append(defaultdict(lambda: Counter()))
 
     contigGenes = defaultdict(list)
-    for gene, matchs in matches.iteritems(): 
+    for gene, matchs in matches.items(): 
         #print str(gene)
         m = re.search(r"(.*)_\d+", gene)
         contig = m.group(1)
@@ -264,7 +265,7 @@ def main(argv):
     
     contigAssign = defaultdict(dict)
     
-    for contig, genes in contigGenes.iteritems():
+    for contig, genes in contigGenes.items():
     
         collate_hits = list()
         for depth in range(7):
