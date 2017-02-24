@@ -68,7 +68,8 @@ def read_blast_lines(fh, lengths, accession_mode, min_id):
 
 
 def read_blast_input(blastinputfile, lengths, min_id, accession_mode=False):
-    with open(blastinputfile) as fh: (matches, gids) = read_blast_lines(fh, lengths, accession_mode, min_id)
+    with open(blastinputfile) as fh:
+        (matches, gids) = read_blast_lines(fh, lengths, accession_mode, min_id)
     return (matches, gids.keys())
 
 
@@ -96,7 +97,8 @@ def read_lineage_lines(fh):
 
 
 def read_lineage_file(lineage_file):
-    with open(lineage_file) as fh: (mapping, mapBack) = read_lineage_lines(fh)
+    with open(lineage_file) as fh:
+        (mapping, mapBack) = read_lineage_lines(fh)
     return (mapping, mapBack)
 
 
@@ -110,7 +112,8 @@ def read_query_length_lines(fh):
 
 
 def read_query_length_file(query_length_file):
-    with open(query_length_file) as fh: lengths = read_query_length_lines(fh)
+    with open(query_length_file) as fh:
+        lengths = read_query_length_lines(fh)
     return lengths
 
 
@@ -158,18 +161,21 @@ def map_accessions(accs, fh):
     found = 0
     mappings = dict([(acc, -1) for acc in accs])
     for i, line in enumerate(fh):
-        if i == 0: continue
+        if i == 0:
+            continue
         _, acc_ver, taxid, _ = line.split("\t")
         # Only add taxids for the given acc
         if acc_ver in mappings:
             mappings[acc_ver] = int(taxid)
             found+=1
-            if found==total_accs: break
+            if found==total_accs:
+                break
     return mappings
 
 
 def read_accessions_file(accs, mapping_file):
-    with open(mapping_file) as fh: mappings = map_accessions(accs, fh)
+    with open(mapping_file) as fh:
+        mappings = map_accessions(accs, fh)
     return mappings
 
 
@@ -188,7 +194,8 @@ def read_bed_lines(fh):
 
 
 def read_bed_file(bedfile):
-    with open(bedfile) as fh: (lengths, contigGenes, contigLengths) = read_bed_lines(fh)
+    with open(bedfile) as fh:
+        (lengths, contigGenes, contigLengths) = read_bed_lines(fh)
     return lengths, contigGenes, contigLengths
 
 
@@ -207,17 +214,20 @@ def test_calculate_taxa_weight():
 
 def collate_gene_hits(matchs, mapping, lineages, taxa_identities):
     collate_hits = list()
-    for depth in range(7): collate_hits.append(Counter())
+    for depth in range(7):
+        collate_hits.append(Counter())
 
     added_matches = set()
     ## Iterate the hits (protein accessions) and normalized identity, sorted by decreasing normalized percent identity
     for (match, fHit) in sorted(matchs, key=lambda x: x[1], reverse=True):
-        if mapping[match] <= -1: continue
+        if mapping[match] <= -1:
+            continue
         ## Get the taxid and lineage for the protein accession
         tax_id = mapping[match]
 
         ## Only add best hit per species
-        if tax_id in added_matches: continue
+        if tax_id in added_matches:
+            continue
         added_matches.add(tax_id)
 
         if tax_id not in lineages:
@@ -229,7 +239,8 @@ def collate_gene_hits(matchs, mapping, lineages, taxa_identities):
             if hits[depth] != "None":
                 ## Calculate the normalized weight for each depth, if < 0 the hit is not included
                 weight = calculate_taxa_weight(fHit, taxa_identities[depth])
-                if weight > 0.0: collate_hits[depth][hits[depth]] += weight  # could put a transform in here
+                if weight > 0.0:
+                    collate_hits[depth][hits[depth]] += weight  # could put a transform in here
     return collate_hits
 
 
@@ -269,7 +280,8 @@ def make_assignment(geneAssign, gene, collate_hits, mapBack, min_fraction):
 
 def assign_unclassified():
     d = {}
-    for depth in range(7): d[depth] = ('Unclassified',-1.0)
+    for depth in range(7):
+        d[depth] = ('Unclassified',-1.0)
     return d
 
 def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, min_fraction, taxa_identities):
@@ -329,9 +341,11 @@ def write_assigns(assign, assign_file, support_file):
             last_known = ""
             for depth in range(7):
                 (a, p) = assign[key][depth]
-                if a!="Unclassified": last_known = a
+                if a!="Unclassified":
+                    last_known = a
                 else:
-                    if last_known: a = a + "." + last_known
+                    if last_known:
+                        a = a + "." + last_known
                 assign_fh.write(',%s' % a)
                 support_fh.write(',%.3f' % p)
             assign_fh.write('\n')
