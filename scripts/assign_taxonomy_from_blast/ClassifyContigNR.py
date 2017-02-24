@@ -386,6 +386,7 @@ def main():
     if len(args.taxa_identities) != 7:
         raise Exception(
             "Please specify taxa identities as an array of length 7. Length of {} is {}.".format(args.taxa_identities, len(args.taxa_identities))
+            )
     if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
         raise Exception(
             "Both gid_taxaid_mapping_file and acc_taxaid_mapping_file are given, but only one at a time is allowed")
