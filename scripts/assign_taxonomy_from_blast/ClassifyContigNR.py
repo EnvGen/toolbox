@@ -310,46 +310,34 @@ def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, m
                 if dWeight > 0.0:
                     dP = float(sortCollate[0][1]) / dWeight
                     if dP > min_fraction:
-                        contigAssign[contig][depth] = (sortCollate[0][0], dP, sortCollate[0][1])
+                        contigAssign[contig][depth] = (sortCollate[0][0], dP)#, sortCollate[0][1])
                     else:
-                        contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+                        contigAssign[contig][depth] = ('Unclassified', 0.)
                 else:
-                    contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+                    contigAssign[contig][depth] = ('Unclassified', 0.)
             else:
-                contigAssign[contig][depth] = ('Unclassified', 0., 0.)
+                contigAssign[contig][depth] = ('Unclassified', 0.)
 
     return contigAssign,geneAssign
 
 
-def write_gene_assigns(output_dir, geneAssign):
-    with open(output_dir + "_genes.csv", "w") as assign_file, open(output_dir + "_genes.supports.csv",
-                                                                   "w") as support_file:
-        for gene in geneAssign.keys():
-            assign_file.write('%s' % gene)
-            support_file.write('%s' % gene)
+def write_assigns(assign, assign_file, support_file):
+    with open(assign_file, "w") as assign_fh, open(support_file, "w") as support_fh:
+        for key in assign.keys():
+            assign_fh.write('%s' % key)
+            support_fh.write('%s' % key)
+            last_known = ""
             for depth in range(7):
-                (assign, p) = geneAssign[gene][depth]
-                assign_file.write(',%s' % assign)
-                support_file.write(',%.3f' % p)
-            assign_file.write('\n')
-            support_file.write('\n')
-            assign_file.flush()
-            support_file.flush()
-
-
-def write_contig_assigns(output_dir, contigAssign, contigLengths):
-    with open(output_dir + "_contigs.csv", "w") as assign_file, open(output_dir+"_contigs.supports.csv", "w") as support_file:
-        for contig in contigAssign.keys():
-            assign_file.write('%s,%f' % (contig, contigLengths[contig]))
-            for depth in range(7):
-                (assign, p, dF) = contigAssign[contig][depth]
-                dFN = dF / contigLengths[contig]
-                assign_file.write(',%s'%assign)
-                support_file.write(',%.3f/%.3f' % (p, dFN))
-            assign_file.write('\n')
-            support_file.write('\n')
-            assign_file.flush()
-            support_file.flush()
+                (a, p) = assign[key][depth]
+                if a!="Unclassified": last_known = a
+                else:
+                    if last_known: a = a + "." + last_known
+                assign_fh.write(',%s' % a)
+                support_fh.write(',%.3f' % p)
+            assign_fh.write('\n')
+            support_fh.write('\n')
+            assign_fh.flush()
+            support_fh.flush()
 
 
 def main():
@@ -369,8 +357,10 @@ def main():
                         would be more strict.")
     parser.add_argument('-m', '--min_id', default=40.0, type=float,
                         help="Minimum allowed percent identity to parse a hit")
-    parser.add_argument('-o', '--output_dir', type=str, default="output",
-                        help=("string specifying output directory and file stubs"))
+    parser.add_argument('-o', '--output_name', type=str, default="output",
+                        help="String specifying output base name. Gene and contig assignments will be written \
+                        with suffixes '_genes.csv and '_contigs.csv'. Support values are written with the additional \
+                        suffixes _genes.supports.csv and _contigs.supports.csv")
     parser.add_argument("-t", "--taxa_identities", nargs="*", default=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95],
                         help="Specify normalized weights for the ranks: superkingdom phylum class order\
                          family genus species. Defaults to 0.4 0.5 0.6 0.7 0.8 0.9 0.95")
@@ -414,9 +404,10 @@ def main():
     logging.info("Assigning taxonomy")
     contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, args.min_fraction, taxa_identities)
     logging.info("Finished assigning taxonomy")
-    write_gene_assigns(args.output_dir, geneAssign)
-    write_contig_assigns(args.output_dir, contigAssign, contigLengths)
-    logging.info("Results written to "+args.output_dir)
+    write_assigns(geneAssign, args.output_name+"_genes.csv", args.output_name+"_genes.supports.csv")
+    write_assigns(contigAssign, args.output_name + "_contigs.csv", args.output_name + "_contigs.supports.csv")
+    logging.info("Results written to "+args.output_name+"_genes.csv "+ args.output_name+"_contigs.csv")
+    logging.info("Supports written to "+args.output_name+"_genes.supports.csv "+ args.output_name+"_contigs.supports.csv")
 
 if __name__ == "__main__":
     main()
