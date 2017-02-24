@@ -7,8 +7,6 @@ from collections import defaultdict
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
-# These are identities normalized with query coverage:
-MIN_IDENTITY_TAXA = [0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95]
 
 def get_id(subjectId, accession_mode):
     '''Returns the identifier for the query'''
@@ -18,7 +16,17 @@ def get_id(subjectId, accession_mode):
         return subjectId.split("|")[1]
 
 
+def calculate_prot_length(start, end):
+    return (abs(int(end) - int(start)) + 1)/3.0
+
+
+def test_calculate_prot_length():
+    assert calculate_prot_length(12, 1) == 4
+    assert calculate_prot_length(1, 12) == 4
+
+
 def calculate_fHit(percIdentity, queryEnd, queryStart, qLength):
+    '''Calculates percent identity normalized to the fraction of the alignment to the query'''
     alnLength_in_query = abs(int(queryEnd) - int(queryStart)) + 1
     fHit = float(alnLength_in_query) / qLength
     fHit *= float(percIdentity) / 100.0
@@ -36,8 +44,8 @@ def test_fHit_calculation():
 
 
 def read_blast_lines(fh, lengths, accession_mode, min_id):
-    # k191_83_2       gi|973180054|gb|KUL19018.1|     71.2    73      21      0       9       81      337     409     6.6e-24 118.2
-    # queryId, subjectId, percIdentity, alnLength, mismatchCount, gapOpenCount, queryStart, queryEnd, subjectStart, subjectEnd, eVal, bitScore
+    # k191_83_2 gi|973180054|gb|KUL19018.1| 71.2 73 21 0 9 81 337 409 6.6e-24 118.2
+    # qureryId subjectId percIdentity alnLength mismatchCount gapOpenCount queryStart queryEnd subjectStart subjectEnd eVal bitScore
 
     matches = defaultdict(list)
     gids = Counter()
@@ -165,15 +173,6 @@ def read_accessions_file(accs, mapping_file):
     return mappings
 
 
-def calculate_gene_length(start, end):
-    return abs(int(end) - int(start)) + 1
-
-
-def test_calculate_gene_length():
-    assert calculate_gene_length(10, 1) == 10
-    assert calculate_gene_length(1, 10) == 10
-
-
 def read_bed_lines(fh):
     contigGenes = defaultdict(list)
     contigLengths = Counter()
@@ -182,7 +181,7 @@ def read_bed_lines(fh):
         line = line.rstrip()
         contig, start, end, gene = line.split("\t")
         contigGenes[contig].append(gene)
-        length = calculate_gene_length(start, end)
+        length = calculate_prot_length(start, end)
         lengths[gene] = length
         contigLengths[contig] += length
     return (lengths, contigGenes, contigLengths)
@@ -206,7 +205,7 @@ def test_calculate_taxa_weight():
     assert calculate_taxa_weight(fHit, min_id_taxa) == 0.5
 
 
-def collate_gene_hits(matchs, mapping, lineages):
+def collate_gene_hits(matchs, mapping, lineages, taxa_identities):
     collate_hits = list()
     for depth in range(7): collate_hits.append(Counter())
 
@@ -228,8 +227,8 @@ def collate_gene_hits(matchs, mapping, lineages):
         hits = lineages[tax_id]
         for depth in range(7):
             if hits[depth] != "None":
-                ## Calculate the normalized weight for each depth
-                weight = calculate_taxa_weight(fHit, MIN_IDENTITY_TAXA[depth])
+                ## Calculate the normalized weight for each depth, if < 0 the hit is not included
+                weight = calculate_taxa_weight(fHit, taxa_identities[depth])
                 if weight > 0.0: collate_hits[depth][hits[depth]] += weight  # could put a transform in here
     return collate_hits
 
@@ -273,7 +272,7 @@ def assign_unclassified():
     for depth in range(7): d[depth] = ('Unclassified',-1.0)
     return d
 
-def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, contigLengths, min_fraction):
+def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, min_fraction, taxa_identities):
     geneAssign = defaultdict(dict)
     contigAssign = defaultdict(dict)
     for contig, genes in contigGenes.items():
@@ -284,9 +283,10 @@ def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, c
             ## Perform taxonomic assignments for all genes on contig
             try:
                 matchs = matches[gene]
-                collated_gene_hits = collate_gene_hits(matchs, mapping, lineages)
+                collated_gene_hits = collate_gene_hits(matchs, mapping, lineages, taxa_identities)
                 geneAssign = make_assignment(geneAssign, gene, collated_gene_hits, mapBack, min_fraction)
             except KeyError:
+                logging.info("No matches found for "+gene)
                 geneAssign[gene] = assign_unclassified()
                 continue
             ## Then add assignments to the contig for collating
@@ -354,9 +354,8 @@ def write_contig_assigns(output_dir, contigAssign, contigLengths):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("blast_input_file",
-                        help="directory with blast 6 matches to taxaid database *.b6")
-    # parser.add_argument("query_length_file", help="tab delimited file of query lengths")
+    parser.add_argument("-i", "--blast_input_file",
+                        help="Blast input file with blast 6 matches to taxaid database *.b6")
     parser.add_argument('-g', '--gid_taxaid_mapping_file',
                         help="mapping from gid to taxaid gzipped")
     parser.add_argument('-a', '--acc_taxaid_mapping_file',
@@ -366,13 +365,24 @@ def main():
     parser.add_argument('-l', '--lineage_file', required=True,
                         help="text taxaid to lineage mapping")
     parser.add_argument('-f', '--min_fraction', default=0.5, type=float,
-                        help="Minimum fraction of weights needed to assign to a particular level, default 0.5. 0.9 would be more strict.")
-    parser.add_argument('-i', '--min_id', default=40.0, type=float,
+                        help="Minimum fraction of weights needed to assign to a particular level, default 0.5. 0.9 \
+                        would be more strict.")
+    parser.add_argument('-m', '--min_id', default=40.0, type=float,
                         help="Minimum allowed percent identity to parse a hit")
     parser.add_argument('-o', '--output_dir', type=str, default="output",
                         help=("string specifying output directory and file stubs"))
+    parser.add_argument("-t", "--taxa_identities", nargs="*", default=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95],
+                        help="Specify normalized weights for the ranks: superkingdom phylum class order\
+                         family genus species. Defaults to 0.4 0.5 0.6 0.7 0.8 0.9 0.95")
 
     args = parser.parse_args()
+
+    default_taxa_identities = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
+    taxa_identities = args.taxa_identities
+    # Add identities if not all specified
+    for i in range(len(taxa_identities),7):
+        taxa_identities.append(default_taxa_identities[i])
+    taxa_identities = [float(x) for x in taxa_identities]
 
     if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
         raise Exception(
@@ -402,19 +412,11 @@ def main():
     logging.info("Finished loading taxaid map file")
 
     logging.info("Assigning taxonomy")
-    contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, contigLengths, args.min_fraction)
+    contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, args.min_fraction, taxa_identities)
     logging.info("Finished assigning taxonomy")
     write_gene_assigns(args.output_dir, geneAssign)
     write_contig_assigns(args.output_dir, contigAssign, contigLengths)
     logging.info("Results written to "+args.output_dir)
-    #geneAssign = assign_taxonomy_to_genes(matches, mapping, mapBack, lineages, args.min_fraction)
-    #logging.info("Finished assigning taxonomy to genes")
-    #write_gene_assigns(args.output_dir, geneAssign)
-
-    #contigAssign = assign_taxonomy_to_contigs(geneAssign, lengths, contigGenes, contigLengths, args.min_fraction)
-    #logging.info("Finished assigning taxonomy to contigs")
-    #write_contig_assigns(args.output_dir, contigAssign, contigLengths)
-
 
 if __name__ == "__main__":
     main()
