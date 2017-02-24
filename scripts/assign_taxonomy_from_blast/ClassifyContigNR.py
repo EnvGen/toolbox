@@ -381,13 +381,11 @@ def main():
 
     args = parser.parse_args()
 
-    default_taxa_identities = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]
-    taxa_identities = args.taxa_identities
-    # Add identities if not all specified
-    for i in range(len(taxa_identities),7):
-        taxa_identities.append(default_taxa_identities[i])
-    taxa_identities = [float(x) for x in taxa_identities]
+    taxa_identities = [float(x) for x in args.taxa_identities]
 
+    if len(args.taxa_identities) != 7:
+        raise Exception(
+            "Please specify taxa identities as an array of length 7. Length of {} is {}.".format(args.taxa_identities, len(args.taxa_identities))
     if args.gid_taxaid_mapping_file and args.acc_taxaid_mapping_file:
         raise Exception(
             "Both gid_taxaid_mapping_file and acc_taxaid_mapping_file are given, but only one at a time is allowed")
@@ -418,6 +416,7 @@ def main():
     logging.info("Assigning taxonomy")
     contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, args.min_fraction, taxa_identities)
     logging.info("Finished assigning taxonomy")
+
     write_assigns(geneAssign, args.output_name+"_genes.csv", args.output_name+"_genes.supports.csv")
     write_assigns(contigAssign, args.output_name + "_contigs.csv", args.output_name + "_contigs.supports.csv")
     logging.info("Results written to "+args.output_name+"_genes.csv "+ args.output_name+"_contigs.csv")
