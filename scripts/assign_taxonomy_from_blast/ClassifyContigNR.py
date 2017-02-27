@@ -346,8 +346,8 @@ def write_assigns(assign, assign_file, support_file):
                 else:
                     if last_known:
                         a = a + "." + last_known
-                assign_fh.write(',%s' % a)
-                support_fh.write(',%.3f' % p)
+                assign_fh.write('\t%s' % a)
+                support_fh.write('\t%.3f' % p)
             assign_fh.write('\n')
             support_fh.write('\n')
             assign_fh.flush()
