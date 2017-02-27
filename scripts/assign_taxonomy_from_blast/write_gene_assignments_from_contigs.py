@@ -24,7 +24,7 @@ def read_classifications_lines(fh,bed):
     geneassign = {}
     for line in fh:
         line = line.rstrip()
-        items = line.split(",")
+        items = line.split("\t")
         contig = items[0]
         genes = bed[contig]
         for gene in genes: geneassign[gene] = items[1:]
@@ -39,7 +39,7 @@ def read_classifications(classifications,bed):
 
 def write_gene_assign(geneassign):
     for gene,assign in geneassign.items():
-        print(gene,','.join(assign),sep=",")
+        print(gene,'\t'.join(assign),sep="\t")
 
 
 def main():
