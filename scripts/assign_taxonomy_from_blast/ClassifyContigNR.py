@@ -284,8 +284,10 @@ def assign_unclassified():
         d[depth] = ('Unclassified',-1.0)
     return d
 
+
 def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, min_fraction, taxa_identities):
     geneAssign = defaultdict(dict)
+    geneassign_from_contig = defaultdict(dict)
     contigAssign = defaultdict(dict)
     for contig, genes in contigGenes.items():
         collate_hits = list()
@@ -323,14 +325,17 @@ def assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, m
                     dP = float(sortCollate[0][1]) / dWeight
                     if dP > min_fraction:
                         contigAssign[contig][depth] = (sortCollate[0][0], dP)#, sortCollate[0][1])
+                        for gene in genes: geneassign_from_contig[gene][depth] = (sortCollate[0][0], dP)
                     else:
                         contigAssign[contig][depth] = ('Unclassified', 0.)
+                        for gene in genes: geneassign_from_contig[gene][depth] = ('Unclassified', 0.)
                 else:
                     contigAssign[contig][depth] = ('Unclassified', 0.)
+                    for gene in genes: geneassign_from_contig[gene][depth] = ('Unclassified', 0.)
             else:
                 contigAssign[contig][depth] = ('Unclassified', 0.)
-
-    return contigAssign,geneAssign
+                for gene in genes: geneassign_from_contig[gene][depth] = ('Unclassified', 0.)
+    return contigAssign, geneAssign, geneassign_from_contig
 
 
 def write_assigns(assign, assign_file, support_file):
@@ -373,8 +378,8 @@ def main():
                         help="Minimum allowed percent identity to parse a hit")
     parser.add_argument('-o', '--output_name', type=str, default="output",
                         help="String specifying output base name. Gene and contig assignments will be written \
-                        with suffixes '_genes.csv and '_contigs.csv'. Support values are written with the additional \
-                        suffixes _genes.supports.csv and _contigs.supports.csv")
+                        with suffixes '_genes.tab and '_contigs.tab'. Support values are written with the additional \
+                        suffixes _genes.supports.tab and _contigs.supports.tab")
     parser.add_argument("-t", "--taxa_identities", nargs="*", default=[0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95],
                         help="Specify normalized weights for the ranks: superkingdom phylum class order\
                          family genus species. Defaults to 0.4 0.5 0.6 0.7 0.8 0.9 0.95")
@@ -415,13 +420,17 @@ def main():
     logging.info("Finished loading taxaid map file")
 
     logging.info("Assigning taxonomy")
-    contigAssign, geneAssign = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, args.min_fraction, taxa_identities)
+    contigassign, geneassign, geneassign_from_contigs = assign_taxonomy(matches, mapping, mapBack, lineages, lengths, contigGenes, args.min_fraction, taxa_identities)
     logging.info("Finished assigning taxonomy")
 
-    write_assigns(geneAssign, args.output_name+"_genes.csv", args.output_name+"_genes.supports.csv")
-    write_assigns(contigAssign, args.output_name + "_contigs.csv", args.output_name + "_contigs.supports.csv")
-    logging.info("Results written to "+args.output_name+"_genes.csv "+ args.output_name+"_contigs.csv")
-    logging.info("Supports written to "+args.output_name+"_genes.supports.csv "+ args.output_name+"_contigs.supports.csv")
+    write_assigns(geneassign, args.output_name+"_genes.tab", args.output_name+"_genes.supports.tab")
+    write_assigns(contigassign, args.output_name + "_contigs.tab", args.output_name + "_contigs.supports.tab")
+    write_assigns(geneassign_from_contigs, args.output_name + "_genes_from_contigs.tab", args.output_name\
+                  + "_genes_from_contigs.supports.tab")
+    logging.info("Results written to "+args.output_name+"_genes.tab "+ args.output_name+"_contigs.tab"\
+                 +args.output_name+"_genes_from_contigs.tab")
+    logging.info("Supports written to "+args.output_name+"_genes.supports.tab "+ args.output_name+\
+                 "_contigs.supports.tab"+ args.output_name+"_genes_from_contigs.supports.tab")
 
 if __name__ == "__main__":
     main()
