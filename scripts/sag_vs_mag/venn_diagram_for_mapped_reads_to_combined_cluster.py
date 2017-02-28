@@ -55,20 +55,24 @@ def get_all_stats(args):
 
         sag_samfile_path = sag_bam_file
         sag_samfile = pysam.AlignmentFile(sag_samfile_path, 'rb')
-        sag_reads = set((read.qname, read.is_read1) for read in sag_samfile.fetch())
+        sag_mapped_reads = set((read.qname, read.is_read1) for read in sag_samfile.fetch())
 
         sag_unmapped_samfile = pysam.AlignmentFile(sag_unmapped_bam_file, 'rb')
         sag_unmapped_reads = set((read.qname, read.is_read1) for read in sag_unmapped_samfile)
 
+        sag_all_reads = sag_mapped_reads | sag_unmapped_reads
+        # Use intersection with the sag_mapped_reads for all sets
+        # this will remove duplicates as have been done 
+        # against the sag sequences.
         tmp_result_d = {}
-        tmp_result_d['1'] = len(mag_reads & sag_reads)
-        tmp_result_d['2'] = len(mag_reads - sag_reads)
-        tmp_result_d['3'] = len((long_contig_reads - mag_reads) & sag_reads)
-        tmp_result_d['4'] = len(long_contig_reads - mag_reads - sag_reads)
-        tmp_result_d['5'] = len((metagenome_reads - long_contig_reads) & sag_reads)
-        tmp_result_d['6'] = len((metagenome_reads - long_contig_reads) - sag_reads)
-        tmp_result_d['7'] = len(sag_reads - metagenome_reads)
-        tmp_result_d['8'] = len(sag_unmapped_reads - metagenome_reads)
+        tmp_result_d['1'] = len(mag_reads & sag_mapped_reads)
+        tmp_result_d['2'] = len((mag_reads - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['3'] = len((long_contig_reads - mag_reads) & sag_mapped_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['4'] = len((long_contig_reads - mag_reads - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['5'] = len((metagenome_reads - long_contig_reads) & sag_mapped_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['6'] = len(((metagenome_reads - long_contig_reads) - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['7'] = len(sag_mapped_reads - metagenome_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['8'] = len(sag_unmapped_reads - metagenome_reads) # sag_unmapped_reads is a subset of sag_all_reads
 
         result_l.append(tmp_result_d)
 
