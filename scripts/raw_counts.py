@@ -13,14 +13,15 @@ def main(args):
 
     df = None
     for fn, sample_name in zip(args.coverage_files, args.sample_names):
-        count_df = pd.read_table(fn, index_col=0, header=None, names=['gene_id', sample_name])
+        count_df = pd.read_table(fn, index_col=0, header=None, 
+                names=['gene_id', sample_name], compression=args.input_compression)
         if df is None:
             df = count_df
         else:
             df[sample_name] = count_df[sample_name]
 
     df['gene_length'] = gene_lengths
-    df.to_csv(sys.stdout, sep='\t')
+    df[['gene_length'] + list(args.sample_names)].to_csv(sys.stdout, sep='\t')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = __doc__, 
@@ -32,5 +33,7 @@ if __name__ == "__main__":
                 "sequence id, average coverage, sequence length"))
     parser.add_argument('--gene_lengths',
             help=("Gene lengths in a tsv file"))
+    parser.add_argument("--input_compression", default=None, choices=[None, 'gzip'], 
+            help="Compression type for input coverage files. Default=None, use 'gzip', for gzipped files.")
     args = parser.parse_args()
     main(args)
