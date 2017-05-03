@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 """
-With contigs cutup with cut_up_fasta.py as input, sees to that the consequtive
-parts of the original contigs are merged.
+Based on the checkm results, approves bins according to the leves of contamination and completeness.
 
-prints result to stdout.
+Copies approved bins to output directory.
 
 @author: alneberg
 """
