@@ -121,7 +121,15 @@ def main(args):
     )
 
     logging.info("Loading ncbi taxonomy")
-    ncbi_taxa = NCBITaxa()
+    if args.taxdump:
+        logging.info("Building taxonomy tree from taxdump file {}".format(args.taxdump))
+        ncbi_taxa = NCBITaxa(taxdump_file=args.taxdump)
+    elif args.force:
+        logging.error("Building taxonomy tree by downloading fresh taxdump file")
+        ncbi_taxa = NCBITaxa()
+    else:
+        logging.error("Won't download new taxonomy without using force argument")
+        sys.exit(-1)
 
     logging.info("Fetching taxaids from accession to prot file")
     taxaids = get_all_taxaid(args.accession_to_taxid)
@@ -137,7 +145,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("-a", "--accession_to_taxid", help="The accession to protein file prot.accession2taxid file from ncbii: http://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/")
+    parser.add_argument("-a", "--accession_to_taxid", help="The accession to protein file prot.accession2taxid file from ncbi: http://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/")
+    parser.add_argument("-t", "--taxdump", help="taxdump.tar.gz as downloaded from https://ftp.ncbi.nih.gov/pub/taxonomy/")
+    parser.add_argument("--force", help="Running without taxdump will only work with this tag used", action="store_true")
     args = parser.parse_args()
 
     main(args)
