@@ -8,8 +8,17 @@ import sys
 import argparse
 import pandas as pd
 
+def gene_lengths_from_gff(gff_file):
+    gene_id_regex = re.compile('ID=([a-zA-Z_\-0-9]*);')
+    gene_lengths = {}
+    with open(gff_file) as fh:
+        for line in fh:
+            gene_id = gene_id_regex.findall(line)[0]
+            gene_lengths[gene_id] = abs(line.split('	')[3] - line.split('	')[2])
+    return pd.Series(gene_lengths)
+
 def main(args):
-    gene_lengths = pd.read_table(args.gene_lengths, header=None, index_col=0, names=['gene_id', 'gene_length'])
+    gene_lengths = gene_lengths_from_gff(args.gff)
 
     df = None
     for fn, sample_name in zip(args.coverage_files, args.sample_names):
@@ -31,8 +40,8 @@ if __name__ == "__main__":
     parser.add_argument('--coverage_files', nargs='*', 
             help=("Coverage files with tab separated values: "
                 "sequence id, average coverage, sequence length"))
-    parser.add_argument('--gene_lengths',
-            help=("Gene lengths in a tsv file"))
+    parser.add_argument('--gff',
+            help=("GFF version 2 file"))
     parser.add_argument("--input_compression", default=None, choices=[None, 'gzip'], 
             help="Compression type for input coverage files. Default=None, use 'gzip', for gzipped files.")
     args = parser.parse_args()
