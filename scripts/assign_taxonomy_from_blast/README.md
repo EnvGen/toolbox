@@ -1,5 +1,23 @@
 # Assign taxonomy from blast results
 
+## Set it up
+You will need to generate a lineage file corresponding to your blast nr database version. 
+
+## Data download
+The input to generate the lineage file is the taxdump.tar.gz file from ncbi:
+
+    https://ftp.ncbi.nih.gov/pub/taxonomy/
+
+And the protein id to taxonomy mappings prot.accession2taxid.gz from:
+
+   ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid 
+
+### Install ete3
+
+    conda create -n ClassifyContigNR python=2
+    source activate ClassifyContigNR
+    conda install -c etetoolkit ete3=3.0.0b36
+
 
 ## How it works
 Each blast hit for a gene gets a weight:
