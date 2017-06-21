@@ -25,7 +25,7 @@ def get_all_stats(args):
     result_l = []
 
     max_len = 0
-    arg_lists = [args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names, args.sag_unmapped_bam_files]
+    arg_lists = [args.mag_bam_files, args.mag_names, args.mag_contig_lists, args.sag_bam_files, args.sag_names, args.sag_unmapped_bam_files, args.sag_new_bam]
     for arg_list in arg_lists:
         if len(arg_list) > max_len:
             max_len = len(arg_list)
@@ -36,7 +36,7 @@ def get_all_stats(args):
         else:
             new_arg_lists.append(max_len*arg_list)
 
-    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file in zip(*new_arg_lists):
+    for mag_bam_file, mag, mag_contig_list, sag_bam_file, sag, sag_unmapped_bam_file, sag_new_bam in zip(*new_arg_lists):
         mag_reads = set()
         long_contig_reads = set()
         metagenome_reads = set()
@@ -55,22 +55,44 @@ def get_all_stats(args):
 
         sag_samfile_path = sag_bam_file
         sag_samfile = pysam.AlignmentFile(sag_samfile_path, 'rb')
-        sag_reads = set((read.qname, read.is_read1) for read in sag_samfile.fetch())
+        sag_mapped_reads = set((read.qname, read.is_read1) for read in sag_samfile.fetch())
+
+        with pysam.AlignmentFile(sag_new_bam, "wb", header=header) as outf:
+            for read in sag_samfile.fetch():
+                if (read.qname, read.is_read1) in metagenome_reads:
+                    if (read.qname, read.is_read1) in mag_reads:
+                        read.tags = (("RG", "MAG_mapped"))
+                    elif (read.qname, read.is_read1) in long_contig_reads:
+                        read.tags = (("RG", "Long_non_MAG_contig_mapped"))
+                    else:
+                        read.tags = (("RG", "Short_metagenome_contig_mapped"))
+                else:
+                    read.tags = (("RG", "Metagenome_unmapped"))
+                outf.write(read)
 
         sag_unmapped_samfile = pysam.AlignmentFile(sag_unmapped_bam_file, 'rb')
         sag_unmapped_reads = set((read.qname, read.is_read1) for read in sag_unmapped_samfile)
 
+        sag_all_reads = sag_mapped_reads | sag_unmapped_reads
+        # Use intersection with the sag_mapped_reads for all sets
+        # this will remove duplicates as have been done 
+        # against the sag sequences.
         tmp_result_d = {}
-        tmp_result_d['1'] = len(mag_reads & sag_reads)
-        tmp_result_d['2'] = len(mag_reads - sag_reads)
-        tmp_result_d['3'] = len((long_contig_reads - mag_reads) & sag_reads)
-        tmp_result_d['4'] = len(long_contig_reads - mag_reads - sag_reads)
-        tmp_result_d['5'] = len((metagenome_reads - long_contig_reads) & sag_reads)
-        tmp_result_d['6'] = len((metagenome_reads - long_contig_reads) - sag_reads)
-        tmp_result_d['7'] = len(sag_reads - metagenome_reads)
-        tmp_result_d['8'] = len(sag_unmapped_reads - metagenome_reads)
+        tmp_result_d['1'] = len(mag_reads & sag_mapped_reads)
+        tmp_result_d['2'] = len((mag_reads - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['3'] = len((long_contig_reads - mag_reads) & sag_mapped_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['4'] = len((long_contig_reads - mag_reads - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['5'] = len((metagenome_reads - long_contig_reads) & sag_mapped_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['6'] = len(((metagenome_reads - long_contig_reads) - sag_mapped_reads) & sag_all_reads)
+        tmp_result_d['7'] = len(sag_mapped_reads - metagenome_reads) # sag_mapped_reads is a subset of sag_all_reads
+        tmp_result_d['8'] = len(sag_unmapped_reads - metagenome_reads) # sag_unmapped_reads is a subset of sag_all_reads
 
         result_l.append(tmp_result_d)
+
+
+    if args.table_output:
+        t_o_df = pd.DataFrame(result_l, index=zip(new_arg_lists[1], new_arg_lists[4]))
+        t_o_df.to_csv(args.table_output, sep='\t')
 
     if args.summarize_in_one_plot:
         summary_result = {}
@@ -152,9 +174,11 @@ if __name__ == '__main__':
     parser.add_argument("--sag_bam_files", nargs='*')
     parser.add_argument("--sag_names", nargs='*')
     parser.add_argument("--sag_unmapped_bam_files", nargs='*')
+    parser.add_argument("--sag_new_bam", nargs='*')
     parser.add_argument("--output_figures", nargs='*')
     parser.add_argument("--use_agg", action="store_true")
     parser.add_argument("--summarize_in_one_plot", action="store_true", help="Use this tag if all input files will generate one plot")
     parser.add_argument("--name", help="A string to be used as part of the title for summarized plots")
+    parser.add_argument("--table_output", help="File to which a tsv representation of the data will be written") 
     args = parser.parse_args()
     main(args)
