@@ -5,6 +5,8 @@ import subprocess
 
 def main(args):
     assert len(args.input_fastqs) % 2 == 0
+    if len(args.sample_names)*2 != len(args.input_fastqs):
+        print(args.sample_names, args.input_fastqs)
     assert len(args.sample_names)*2 == len(args.input_fastqs)
 
     sample_names_and_fastqs = zip(args.sample_names, zip(args.input_fastqs[0::2], args.input_fastqs[1::2]))
