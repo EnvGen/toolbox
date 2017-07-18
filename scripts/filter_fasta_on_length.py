@@ -16,7 +16,7 @@ def main(args):
         input_handle = sys.stdin
 
     for i, seq in enumerate(SeqIO.parse(input_handle, "fasta")):
-        if len(seq) >= args.length_threshold:
+        if (len(seq) >= args.length_threshold and not args.shorter) or (len(seq) < args.length_threshold and args.shorter):
             seqs.append(seq)
         if i % 1000 == 0 and len(seqs):
             SeqIO.write(seqs, sys.stdout, 'fasta')
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input_fasta", help="Input file")
     parser.add_argument("-l", "--length_threshold", type=int, help="Length threshold to filter on.")
-
+    parser.add_argument("--shorter", action="store_true", help="Output contigs shorter than threshold, default is to output longer or equal sequences.")
     args = parser.parse_args()
 
     main(args)

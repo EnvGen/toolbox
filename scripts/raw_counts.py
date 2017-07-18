@@ -7,6 +7,7 @@ from __future__ import print_function
 import sys
 import argparse
 import pandas as pd
+import re
 
 def gene_lengths_from_gff(gff_file):
     gene_id_regex = re.compile('ID=([a-zA-Z_\-0-9]*);')
@@ -14,7 +15,7 @@ def gene_lengths_from_gff(gff_file):
     with open(gff_file) as fh:
         for line in fh:
             gene_id = gene_id_regex.findall(line)[0]
-            gene_lengths[gene_id] = abs(line.split('	')[3] - line.split('	')[2])
+            gene_lengths[gene_id] = abs(int(line.split('	')[4]) - int(line.split('	')[3]))
     return pd.Series(gene_lengths)
 
 def main(args):

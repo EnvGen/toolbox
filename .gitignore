@@ -3,3 +3,4 @@
 *.idea
 *__pycache__
 test_tpm_table
+*.ipynb_checkpoints
