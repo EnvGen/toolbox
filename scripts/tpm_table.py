@@ -15,13 +15,24 @@ flg: feature length
 T: sum of rgxrl/flg for all genes
 """
 import sys, pandas as pd, argparse, logging
+import re
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+
+def gene_lengths_from_gff(gff_file):
+    gene_id_regex = re.compile('ID=([a-zA-Z_\-0-9]*);')
+    gene_lengths = {}
+    with open(gff_file) as fh:
+        for line in fh:
+            gene_id = gene_id_regex.findall(line)[0]
+            gene_lengths[gene_id] = abs(int(line.split('	')[4]) - int(line.split('	')[3])) + 1
+    return pd.Series(gene_lengths)
 
 def main(args):
     logging.info("Reading sample info")
     sample_info = pd.read_table(args.sample_info, header=None, index_col=0, names=['avg_read_len'])
-    logging.info("Reading gene lengths")
-    gene_lengths = pd.read_table(args.gene_lengths, header=None, index_col=0, names=['gene_id','gene_length'])
+    logging.info("Reading gene lengths from gff")
+
+    gene_lengths = gene_lengths_from_gff(args.gff)
 
     df = pd.DataFrame()
     first = True
@@ -35,16 +46,16 @@ def main(args):
         ## Average read length for sample
         rl = sample_info.ix[sample_name,'avg_read_len']
         ## Calculate T for sample
-        T = rl * rg['count'].divide(gene_lengths['gene_length']).sum()
+        T = rl * rg['count'].divide(gene_lengths).sum()
         ## Calculate TPM for sample
-        tpm = ((1e6*rl)/float(T))*(rg['count'].divide(gene_lengths['gene_length']))
+        tpm = ((1e6*rl)/float(T))*(rg['count'].divide(gene_lengths))
         ## Create dataframe
         TPM = pd.DataFrame(tpm,columns=[sample_name])
 
         ## Add gene length as the first column
         if first:
             first = False
-            df = pd.concat([df, gene_lengths],axis=1)
+            df['gene_length'] = gene_lengths
         
         ## Concatenate to results
         df = pd.concat([df,TPM],axis=1)
@@ -60,6 +71,8 @@ if __name__ == "__main__":
             help="Sample names, in the same order as coverage_files")
     parser.add_argument('-c', '--coverage_files', nargs='*', 
             help="Coverage files with tab separated values: 'sequence id, count'")
+    parser.add_argument('--gff',
+            help=("GFF version 2 file"))
     parser.add_argument('-i', '--sample_info', 
             help="Tab separated values 'sample_id', 'avg_read_length'")
     parser.add_argument('-l', '--gene_lengths',

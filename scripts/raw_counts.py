@@ -15,7 +15,7 @@ def gene_lengths_from_gff(gff_file):
     with open(gff_file) as fh:
         for line in fh:
             gene_id = gene_id_regex.findall(line)[0]
-            gene_lengths[gene_id] = abs(int(line.split('	')[4]) - int(line.split('	')[3]))
+            gene_lengths[gene_id] = abs(int(line.split('	')[4]) - int(line.split('	')[3])) + 1
     return pd.Series(gene_lengths)
 
 def main(args):
