@@ -10,11 +10,18 @@ import os
 from Bio import SeqIO
 import pandas as pd
 from collections import defaultdict
+import gzip
 
 def main(args):
     all_seqs = {}
-    for i, seq in enumerate(SeqIO.parse(args.fasta_file, "fasta")):
-        all_seqs[seq.id] = seq
+    if args.fasta_file.endswith('.gz'):
+        with gzip.open(args.fasta_file, 'rt') as handle:
+            for i, seq in enumerate(SeqIO.parse(handle, "fasta")):
+                all_seqs[seq.id] = seq
+    else:
+        with open(args.fasta_file, 'rt') as handle:
+            for i, seq in enumerate(SeqIO.parse(handle, "fasta")):
+                all_seqs[seq.id] = seq
     df = pd.read_csv(args.cluster_file, header=None, names=["contig_id", "cluster_id"])
     
     cluster_to_contigs = defaultdict(list)
@@ -23,7 +30,8 @@ def main(args):
     
     for cluster_id, contig_ids in cluster_to_contigs.iteritems():
         output_file = os.path.join(args.output_path, "{0}.fa".format(cluster_id))
-        seqs = [all_seqs[contig_id] for contig_id in contig_ids] 
+        # The newer version of concoct gives a header for the clustering output, skip that row here
+        seqs = [all_seqs[contig_id] for contig_id in contig_ids if contig_id != 'contig_id'] 
         with open(output_file, 'w') as ofh:
             SeqIO.write(seqs, ofh, 'fasta')
 
