@@ -41,7 +41,7 @@ def main(args):
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--min_completeness", default=75, type=float, help="default=75")
+    parser.add_argument("--min_completeness", default=70, type=float, help="default=70")
     parser.add_argument("--max_contamination", default=5, type=float, help="default=5")
     args = parser.parse_args()
     main(args)
