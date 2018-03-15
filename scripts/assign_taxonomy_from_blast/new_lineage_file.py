@@ -1,18 +1,22 @@
-#!/usr/bin/env python
 # coding: utf-8
-"""Warning, this script will download taxdump.tar.gz from ncbi the first time it is ran.
-
+"""
 A script to create a tab seperated file containing the taxonomy for all leaves in the ncbi taxonomy
 defined for the rank levels superkingdom, phylum, class, order, family, genus and species.
 
-IMPORTANT: make sure that the prot.accession2taxid file is as up to date as possible.
+Merged from https://bitbucket.org/scilifelab-lts/lts-workflows-sm-metagenomics/src/de18a57be16ed3219493c78ab5b00c0726d492ae/lts_workflows_sm_metagenomics/source/utils/make_lineage_file.py
 """
-
 from ete3 import NCBITaxa
 import argparse
 import sys
 import gzip as gz
 import logging
+import subprocess
+import os
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+)
+
 import io
 
 def read_lines(fh):
@@ -26,6 +30,7 @@ def read_lines(fh):
     return all_prot_mapped_taxids
 
 def get_all_taxaid(acc_to_prot_file):
+    logging.info("Fetching taxaids from accession to prot file")
     if ".gz" in acc_to_prot_file:
         with gz.open(acc_to_prot_file) as prot_map_fh:
             with io.BufferedReader(prot_map_fh) as prot_map_buff_fh:
@@ -46,7 +51,12 @@ def find_base_annotation(last_annotated_level, i, fixed_lineage, names, full_lin
                 base_annotation = names[full_lineage[j]]
     else:
         base_annotation = names[full_lineage[0]]
-        if base_annotation == "root":
+    if base_annotation == "root":
+        # If the full lineage consists of only root, use Unclassified as base_annotation
+        # This can occur if taxids are taken from a clustered database such as Uniref90
+        if len(full_lineage) == 1:
+            base_annotation = 'Unclassified'
+        else:
             base_annotation = names[full_lineage[1]]
 
     return base_annotation
@@ -55,7 +65,7 @@ def add_annotation(last_annotated_level, i, fixed_lineage, names, full_lineage, 
     base_annotation = find_base_annotation(last_annotated_level, i, fixed_lineage, names, full_lineage)
 
     for level in range(last_annotated_level+1, last_annotated_level+missed_levels):
-        fixed_lineage.append("{}_{}".format(base_annotation, level))
+        fixed_lineage.append("{}".format(base_annotation))
     fixed_lineage.append(names[lin_taxaid])
     last_annotated_level += missed_levels
     return fixed_lineage, last_annotated_level
@@ -103,7 +113,7 @@ def taxaid_to_fixed_lineage(taxaid, ncbi):
         base_annotation = find_base_annotation(last_annotated_level, i, fixed_lineage, names, full_lineage)
 
         for level in range(last_annotated_level+1, 7):
-            fixed_lineage.append("{}_{}".format(base_annotation, level))
+            fixed_lineage.append("{}".format(base_annotation))
 
     if len(fixed_lineage) != 7:
         logging.warning("Lineage for {} is of length {}".format(taxaid, len(fixed_lineage)))
@@ -112,42 +122,47 @@ def taxaid_to_fixed_lineage(taxaid, ncbi):
 
     return fixed_lineage
 
-
-
-def main(args):
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s'
-    )
-
-    logging.info("Loading ncbi taxonomy")
-    if args.taxdump:
-        logging.info("Building taxonomy tree from taxdump file {}".format(args.taxdump))
-        ncbi_taxa = NCBITaxa(taxdump_file=args.taxdump)
-    elif args.force:
-        logging.error("Building taxonomy tree by downloading fresh taxdump file")
-        ncbi_taxa = NCBITaxa()
+def write_lineage(taxaids, ncbi_taxa, outfile):
+    if not outfile:
+        fhout = sys.stdout
     else:
-        logging.error("Won't download new taxonomy without using force argument")
-        sys.exit(-1)
-
-    logging.info("Fetching taxaids from accession to prot file")
-    taxaids = get_all_taxaid(args.accession_to_taxid)
-
+        fhout = open(outfile, 'w')
     logging.info("Print lineage for each taxaid")
     for taxaid in taxaids:
         lineage = taxaid_to_fixed_lineage(taxaid, ncbi_taxa)
         if lineage:
-            sys.stdout.write(str(taxaid) + "\t")
-            sys.stdout.write("\t".join(lineage)+ "\n")
+            fhout.write(str(taxaid) + "\t")
+            fhout.write("\t".join(lineage)+ "\n")
         else:
             logging.warning("Taxaid missing in ncbi taxonomy: {}".format(taxaid))
 
+def main(args):
+    logging.info("Loading ncbi taxonomy")
+    if not args.dbfile:
+        ncbi_taxa = NCBITaxa()
+    else:
+        dirname = os.path.dirname(args.dbfile)
+        cmd = "mkdir -p "+dirname
+        p1 = subprocess.Popen(cmd, shell=True, stdin=None)
+        p1.wait()
+        cmd = "touch "+args.dbfile
+        p2 = subprocess.Popen(cmd, shell=True, stdin=None)
+        p2.wait()
+        ncbi_taxa = NCBITaxa(args.dbfile)
+
+    taxaids = get_all_taxaid(args.accession_to_taxid)
+
+    write_lineage(taxaids, ncbi_taxa, args.outfile)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("-a", "--accession_to_taxid", help="The accession to protein file prot.accession2taxid file from ncbi: http://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/")
-    parser.add_argument("-t", "--taxdump", help="taxdump.tar.gz as downloaded from https://ftp.ncbi.nih.gov/pub/taxonomy/")
-    parser.add_argument("--force", help="Running without taxdump will only work with this tag used", action="store_true")
+    parser.add_argument("-a", "--accession_to_taxid",
+                        help="The accession to protein file prot.accession2taxid file from ncbi: http://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/")
+    parser.add_argument("-o", "--outfile",
+                        help="Write lineage to outfile. Defaults to stdout.")
+    parser.add_argument("-d", "--dbfile",
+                        help="Path to sqlite database to create using ete3. If not specified it will be saved as ~/.etetoolkit/taxa.sqlite")
+
     args = parser.parse_args()
 
     main(args)
